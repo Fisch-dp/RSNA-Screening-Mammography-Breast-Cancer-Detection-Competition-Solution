@@ -17,19 +17,19 @@ class trainer:
     def __init__(self, 
                  cfg,
                  df,
-                 df_y = "cancer",
+                 df_y = cfg.df_y,
                  model = Model(cfg),
                  optimizer = cfg.optimizer,
                  Lookahead = cfg.Lookahead,
                  scheduler = cfg.scheduler,
                  scaler = GradScaler(),
                  loss_calculation = torch.mean,
-                 out_classes = ["cancer", "invasive"],
+                 out_classes = cfg.out_classes,
                  loss_functions = [
                                 torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                 torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                 ],
-                 aux_input = ["age", "implant", "view", "site", "machine"]      
+                 aux_input = cfg.aux_input     
                  ):
         
         set_seed(cfg.seed)
@@ -352,7 +352,7 @@ class trainer:
                 f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_Loss_metric.pth",
             )
                 
-    def main(self):
+    def fit(self):
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.train(epoch)

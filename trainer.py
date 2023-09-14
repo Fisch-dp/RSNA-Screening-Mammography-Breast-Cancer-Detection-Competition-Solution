@@ -165,8 +165,7 @@ class trainer:
             progress_bar.set_description(out_print)
         
         for i in range(len(self.out_classes)):
-            label = self.out_classes[i][:3]
-            label[0] = label[0].upper()
+            label = self.out_classes[i][:3].capitalize()
             if self.out_classes[i] == "Cancer"[:3]:
                 label = ""
             self.train_print(label_dic[self.out_classes[i]], out_dic[self.out_classes[i]], epoch, label=label)
@@ -244,8 +243,7 @@ class trainer:
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
         
-        cls = cls[:3]
-        cls[0] = cls[0].upper()
+        cls = cls[:3].capitalize()
         if cls == "Cancer"[:3]: cls = ""
         if cls !="": cls = cls + " "
         print(cls)

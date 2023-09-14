@@ -41,7 +41,7 @@ cfg.seed = 42
 cfg.df_y = "cancer"
 
 # model
-cfg.backbone = "tf_efficientnet_s"
+cfg.backbone = f"tf_efficientnetv2_s"
 cfg.num_classes = 1
 cfg.pos_weight = 2
 cfg.in_channels = 3

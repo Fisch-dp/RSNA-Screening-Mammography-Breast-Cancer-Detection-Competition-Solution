@@ -122,7 +122,7 @@ class trainer:
 
         self.test = False
 
-    def train(self, epoch):
+    def run_train(self, epoch):
         self.model.train()
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
@@ -193,7 +193,7 @@ class trainer:
         self.writer.add_scalar(f"{label}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{label}Train AUC", auc, epoch)
 
-    def eval(self, model, epoch, train="Val"):
+    def run_eval(self, model, epoch, train="Val"):
         model.eval()
         torch.set_grad_enabled(False)
 
@@ -355,11 +355,11 @@ class trainer:
         self.test = test
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
-            self.train(epoch)
-            score, loss, val_metric = eval(self.model, epoch, train="Val")
+            self.run_train(epoch)
+            score, loss, val_metric = run_eval(self.model, epoch, train="Val")
             self.saving_best(score, loss, val_metric, epoch)
 
-        _, _, train_metric = eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
+        _, _, train_metric = run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
 
         for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
 

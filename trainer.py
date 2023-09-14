@@ -12,6 +12,7 @@ from utils import *
 from config import *
 from Model import *
 from Lookahead import *
+from Dataset import *
 
 class trainer:
     def __init__(self, 
@@ -36,8 +37,8 @@ class trainer:
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
         
-        val_df = df[df["fold"] == cfg.fold]
-        train_df = df[df["fold"] != cfg.fold]
+        val_df = self.df[self.df["fold"] == cfg.fold]
+        train_df = self.df[self.df["fold"] != cfg.fold]
 
         self.train_dataset = CustomDataset(df=train_df, cfg=cfg, aug=cfg.train_transforms, Train=True)
         self.val_dataset = CustomDataset(df=val_df, cfg=cfg, aug=cfg.val_transforms, Train=False)

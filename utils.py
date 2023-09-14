@@ -113,8 +113,6 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     for fold_index, (train_index, val_index) in enumerate(cv.split(X, y, groups)):
 
         df_out.loc[val_index, "fold"] = fold_index
-
-        # check
         train_groups, val_groups = groups[train_index], groups[val_index]
         assert len(set(train_groups) & set(val_groups)) == 0
 

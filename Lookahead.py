@@ -1,4 +1,4 @@
-import torch.optim.optimizer as Optimizer
+from torch.optim.optimizer import Optimizer
 import torch
 
 class Lookahead(Optimizer):

@@ -19,21 +19,15 @@ class trainer:
                  df,
                  df_y = cfg.df_y,
                  model = Model(cfg),
-                 optimizer = cfg.optimizer,
-                 Lookahead = cfg.Lookahead,
-                 scheduler = cfg.scheduler,
                  scaler = GradScaler(),
                  loss_calculation = torch.mean,
-                 out_classes = cfg.out_classes,
-                 loss_functions = [
-                                torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
-                                torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
-                                ],
-                 aux_input = cfg.aux_input     
+                 loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
+                                    torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
+                                    ], 
                  ):
         
         set_seed(cfg.seed)
-        assert len(loss_functions) == len(out_classes)
+        assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
         self.df = apply_StratifiedGroupKFold(
                     X=df,
@@ -54,16 +48,16 @@ class trainer:
 
         self.model = model.to(cfg.device)
 
-        if optimizer == "AdamW": self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif optimizer == "Adam": self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif optimizer == "SGD": self.optimizer = torch.optim.SGD(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif optimizer == "RAdam": self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        if cfg.optimizer == "AdamW": self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        elif cfg.optimizer == "Adam": self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        elif cfg.optimizer == "SGD": self.optimizer = torch.optim.SGD(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        elif cfg.optimizer == "RAdam": self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
         else: raise NotImplementedError
 
-        if Lookahead:
+        if cfg.Lookahead:
             self.optimizer = Lookahead(self.optimizer, k=5, alpha=0.5)
         
-        if scheduler == "OneCycleLR": self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        if cfg.scheduler == "OneCycleLR": self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
                                                             self.optimizer,
                                                             max_lr=cfg.lr,
                                                             epochs=cfg.epochs,
@@ -73,20 +67,20 @@ class trainer:
                                                             div_factor=cfg.lr_div,
                                                             final_div_factor=cfg.lr_final_div,
                                                         )
-        elif scheduler == "CosineAnnealingLR": self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        elif cfg.scheduler == "CosineAnnealingLR": self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                                                                     self.optimizer,
                                                                     T_max=cfg.epochs,
                                                                     eta_min=cfg.lr_min,
                                                                 )
-        elif scheduler == "StepLR": self.scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.StepLR_step_size, gamma=cfg.StepLR_gamma)
-        else: self.scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10000000, gamma=0.1,)
+        elif cfg.scheduler == "StepLR": self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=cfg.StepLR_step_size, gamma=cfg.StepLR_gamma)
+        else: self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10000000, gamma=0.1,)
 
         self.loss_functions = [i.to(cfg.device) for i in loss_functions]
         self.scaler = scaler
         self.writer = SummaryWriter(str(cfg.output_dir + f"/fold{cfg.fold}/"))
         self.loss_calculation = loss_calculation
-        self.out_classes = out_classes
-        self.aux_input = aux_input
+        self.out_classes = cfg.out_classes
+        self.aux_input = cfg.aux_input
         self.grad_clip = cfg.grad_clip
 
         #Saving Best Model Config
@@ -113,16 +107,16 @@ class trainer:
         "initial LR": cfg.lr,
         "OneCycleLR_div_factor": cfg.lr_div,
         "OneCycleLR_final_div_factor": cfg.lr_final_div,
-        "Optimizer": optimizer,
-        "LR_Scheduler": scheduler,
+        "Optimizer": cfg.optimizer,
+        "LR_Scheduler": cfg.scheduler,
         "weight_decay": cfg.weight_decay,
         "grad_clip": cfg.grad_clip,
         }
         if Lookahead: self.hparams.update({"Lookahead": "True"})
         else: self.hparams.update({"Lookahead": "False"})
-        if aux_input != []: self.hparams.update({"Aux_input": "True"})
+        if self.aux_input != []: self.hparams.update({"Aux_input": "True"})
         else: self.hparams.update({"Aux_input": "False"})
-        if out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
+        if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
 
     

@@ -166,6 +166,7 @@ class trainer:
         
         for i in range(len(self.out_classes)):
             label = self.out_classes[i][:3].capitalize()
+            print(label)
             if self.out_classes[i] == "Cancer"[:3]:
                 label = ""
             self.train_print(label_dic[self.out_classes[i]], out_dic[self.out_classes[i]], epoch, label=label)
@@ -355,10 +356,10 @@ class trainer:
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.train(epoch)
-            score, loss, val_metric = eval(self, self.model, epoch, train="Val")
-            self.saving_best(self, score, loss, val_metric, epoch)
+            score, loss, val_metric = eval(self.model, epoch, train="Val")
+            self.saving_best(score, loss, val_metric, epoch)
 
-        _, _, train_metric = eval(self, self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
+        _, _, train_metric = eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
 
         for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
 

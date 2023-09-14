@@ -26,7 +26,6 @@ class CustomDataset(Dataset):
     ):
         super().__init__()
         self.cfg = cfg
-        self.aug = aug
         self.df = df
         self.epoch_len = self.df.shape[0]
         self.Train = Train

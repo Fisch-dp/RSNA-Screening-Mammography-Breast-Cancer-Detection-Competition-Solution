@@ -133,7 +133,7 @@ class trainer:
             
         for i,itr in enumerate(progress_bar):
             if self.test:
-                if i == 10: break
+                if i == 1: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
@@ -206,7 +206,7 @@ class trainer:
 
         for i, itr in enumerate(progress_bar):
             if self.test:
-                if i == 10: break
+                if i == 1: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
             labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]

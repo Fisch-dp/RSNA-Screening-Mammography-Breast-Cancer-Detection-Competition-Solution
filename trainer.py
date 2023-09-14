@@ -40,8 +40,8 @@ class trainer:
         val_df = self.df[self.df["fold"] == cfg.fold]
         train_df = self.df[self.df["fold"] != cfg.fold]
 
-        self.train_dataset = CustomDataset(df=train_df, cfg=cfg, aug=cfg.train_transforms, Train=True)
-        self.val_dataset = CustomDataset(df=val_df, cfg=cfg, aug=cfg.val_transforms, Train=False)
+        self.train_dataset = CustomDataset(df=train_df, cfg=cfg, Train=True)
+        self.val_dataset = CustomDataset(df=val_df, cfg=cfg, Train=False)
         print("train: ", len(self.train_dataset), " val: ", len(self.val_dataset))
         print("Train Pos: ", train_df['cancer'].sum(), "Val_Pos: ", val_df['cancer'].sum())
         self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None)

@@ -22,7 +22,6 @@ class CustomDataset(Dataset):
         self,
         df,
         cfg,
-        aug,
         Train,
     ):
         super().__init__()
@@ -31,6 +30,14 @@ class CustomDataset(Dataset):
         self.df = df
         self.epoch_len = self.df.shape[0]
         self.Train = Train
+        self.aug = Compose([
+            LoadImaged(keys="image", image_only=True),
+            EnsureChannelFirstd(keys="image"),
+            RepeatChanneld(keys="image", repeats=3),
+            Transposed(keys="image", indices=(0, 2, 1)),
+            Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
+            Lambdad(keys="image", func=lambda x: x / 255.0),
+        ])
 
     def __getitem__(self, idx):
         sample = self.df.iloc[idx]
@@ -46,14 +53,6 @@ class CustomDataset(Dataset):
             "site": np.array(sample.site_id, dtype=np.int8),
             "view": np.array(sample['view'], dtype=np.int8)  
         }
-        self.aug = Compose([
-            LoadImaged(keys="image", image_only=True),
-            EnsureChannelFirstd(keys="image"),
-            RepeatChanneld(keys="image", repeats=3),
-            Transposed(keys="image", indices=(0, 2, 1)),
-            Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
-            Lambdad(keys="image", func=lambda x: x / 255.0),
-        ])
         
         data = self.aug(data)
         if cfg.Aug and self.Train:

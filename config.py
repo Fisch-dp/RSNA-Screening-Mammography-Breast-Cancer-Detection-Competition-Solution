@@ -38,6 +38,7 @@ cfg.Aug = True
 cfg.AugStrength = 1
 cfg.num_folds = 4
 cfg.seed = 42
+cfg.df_y = "cancer"
 
 # model
 cfg.num_classes = 1

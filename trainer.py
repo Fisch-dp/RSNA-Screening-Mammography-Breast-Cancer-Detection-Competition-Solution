@@ -120,7 +120,8 @@ class trainer:
         if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
 
-    
+        self.test = False
+
     def train(self, epoch):
         self.model.train()
         progress_bar = tqdm(range(len(self.train_dataloader)))
@@ -130,7 +131,9 @@ class trainer:
         out_dic = {f'{i}': [] for i in self.out_classes}
         loss_dic = {f'{i}': [] for i in self.out_classes}
             
-        for itr in progress_bar:
+        for i,itr in enumerate(progress_bar):
+            if self.test:
+                if i == 10: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
@@ -140,8 +143,8 @@ class trainer:
             torch.set_grad_enabled(True)
             with autocast():
                 outputs_list = self.model(inputs, *aux_input_list)
+                loss = []
                 for i in range(len(self.out_classes)):
-                    loss = []
                     loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
@@ -201,7 +204,9 @@ class trainer:
         out_dic = {f'{i}': [] for i in self.out_classes}
         all_ids = []
 
-        for itr in progress_bar:
+        for i, itr in enumerate(progress_bar):
+            if self.test:
+                if i == 10: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
             labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
@@ -347,7 +352,8 @@ class trainer:
                 f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_Loss_metric.pth",
             )
                 
-    def fit(self):
+    def fit(self, test=False):
+        self.test = test
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.train(epoch)

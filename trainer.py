@@ -120,8 +120,6 @@ class trainer:
         if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
 
-        self.test = cfg.test
-
     def run_train(self, epoch):
         self.model.train()
         progress_bar = tqdm(range(len(self.train_dataloader)))
@@ -132,8 +130,8 @@ class trainer:
         loss_dic = {f'{i}': [] for i in self.out_classes}
             
         for i,itr in enumerate(progress_bar):
-            if self.test:
-                if i == 1: break
+            if self.cfg.test_iter is not None:
+                if i == self.cfg.test_iter: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
@@ -207,8 +205,8 @@ class trainer:
         all_image_ids = []
 
         for i, itr in enumerate(progress_bar):
-            if self.test:
-                if i == 1: break
+            if self.cfg.test_iter is not None:
+                if i == self.cfg.test_iter: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
             labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]

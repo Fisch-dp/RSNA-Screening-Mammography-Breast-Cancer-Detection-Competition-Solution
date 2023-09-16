@@ -120,7 +120,7 @@ class trainer:
         if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
 
-        self.test = False
+        self.test = cfg.test
 
     def run_train(self, epoch):
         self.model.train()

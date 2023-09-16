@@ -96,11 +96,11 @@ def pfbeta(labels, predictions, beta):
     beta_squared = beta * beta
 
     try: c_precision = ctp / (ctp + cfp)
-    except: c_precision = 0.00
+    except: pass
     try: c_recall = ctp / y_true_count
-    except: c_recall = 0.00
+    except: pass
     try: result = (1 + beta_squared) * (c_precision * c_recall) / (beta_squared * c_precision + c_recall)
-    except: result = 0.00
+    except: pass
     
     return float(result), float(c_recall), float(c_precision)
 

@@ -119,6 +119,10 @@ class trainer:
         else: self.hparams.update({"Aux_input": "False"})
         if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
+        if self.cfg.tta is not None: self.hparams.update({"TTA": "True"})
+        else: self.hparams.update({"TTA": "False"})
+        if self.cfg.Trans is not None: self.hparams.update({"Train_AUG": "True"})
+        else: self.hparams.update({"Train_AUG": "False"})
 
     def run_train(self, epoch):
         self.model.train()
@@ -360,8 +364,7 @@ class trainer:
                 f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_Loss_metric.pth",
             )
                 
-    def fit(self, test=False):
-        self.test = test
+    def fit(self):
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.run_train(epoch)

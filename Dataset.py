@@ -56,9 +56,11 @@ class CustomDataset(Dataset):
         }
         
         data = self.aug(data)
-        if cfg.Aug and self.Train:
+        if (cfg.Trans is not None and self.Train) or (cfg.tta is not None and not self.Train):
             data['image'] = data['image'].permute(1,2,0) * 255
-            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
+            if self.Train: Trans = cfg.Trans
+            else: cfg.tta
+            data["image"] = Trans(image=np.array(data['image'].to(torch.uint8)))['image']
             data['image'] = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)(image=data['image'])['image']
             data['image'] = data['image'].to(torch.float32) / 255
         return data

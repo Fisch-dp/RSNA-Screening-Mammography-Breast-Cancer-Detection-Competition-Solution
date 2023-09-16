@@ -244,7 +244,7 @@ class trainer:
     def print_write(self, df, epoch, cls, train="Val", by="prediction_id"):
         
         all_labels = np.array(df.groupby([by]).agg({f"{cls}_labels": "max"})[f"{cls}_labels"])
-        all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls)
+        all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
 
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -291,7 +291,7 @@ class trainer:
                 }
         return bin_score, loss, data_lib
 
-    def optimize(self, df, all_labels, cls):
+    def optimize(self, df, all_labels, cls, by="prediction_id"):
         bin_score = -0.01
         threshold = 0.0
         selectedp = 1.0
@@ -301,11 +301,11 @@ class trainer:
         iter = [1,2,3,4,5,6,7,8,9,10,100]
         if cls != "cancer": iter = [1]
         for p in iter:
-            if p==100: all_outputs = np.array(df.groupby(["prediction_id"]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+            if p==100: all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
             else:
                 def funct(x):
                     return np.power(np.mean(x.pow(p)), 1.0/p)
-                all_outputs = np.array(df.groupby(["prediction_id"]).agg({f"{cls}_outputs": funct})[f"{cls}_outputs"])
+                all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": funct})[f"{cls}_outputs"])
             for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95]:
                 all_outputs_thres = (all_outputs > i).astype(np.int8)
                 a, b, c = pfbeta(all_labels, all_outputs_thres, 1.0)
@@ -317,11 +317,11 @@ class trainer:
                     selectedp = p
         
         if selectedp==100:
-            all_outputs = np.array(df.groupby(["prediction_id"]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+            all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
         else:
             def gem(x):
                 return np.power(np.mean(x.pow(selectedp)), 1.0/selectedp)
-            all_outputs = np.array(df.groupby(["prediction_id"]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+            all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
         
         return all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp
 

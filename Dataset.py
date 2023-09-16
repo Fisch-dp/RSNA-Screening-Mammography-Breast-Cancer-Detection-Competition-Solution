@@ -43,6 +43,8 @@ class CustomDataset(Dataset):
         data = {
             "image": os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
             "prediction_id": sample.prediction_id,
+            "patient_id": sample.patient_id,
+            "image_id": sample.image_id,
             "cancer": np.expand_dims(np.array(sample.cancer, dtype=np.int8), axis=0),
             "biopsy": np.expand_dims(np.array(sample.biopsy, dtype=np.int8), axis=0),
             "invasive": np.expand_dims(np.array(sample.invasive, dtype=np.int8), axis=0),

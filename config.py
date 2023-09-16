@@ -47,3 +47,6 @@ cfg.pos_weight = 2
 cfg.in_channels = 3
 cfg.drop_rate = 0.3
 cfg.drop_path_rate = 0.2
+
+# Eval
+cfg.evaluation_by = ["image_id", "prediction_id", "patient_id"]

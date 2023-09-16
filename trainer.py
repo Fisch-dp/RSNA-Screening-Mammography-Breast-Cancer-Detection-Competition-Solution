@@ -193,7 +193,7 @@ class trainer:
         self.writer.add_scalar(f"{label}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{label}Train AUC", auc, epoch)
 
-    def run_eval(self, model, epoch, train="Val"):
+    def run_eval(self, model, epoch, train="Val", by="prediction_id"):
         model.eval()
         torch.set_grad_enabled(False)
 
@@ -202,7 +202,9 @@ class trainer:
 
         label_dic = {f'{i}': [] for i in self.out_classes}
         out_dic = {f'{i}': [] for i in self.out_classes}
-        all_ids = []
+        all_prediction_ids = []
+        all_patient_ids = []
+        all_image_ids = []
 
         for i, itr in enumerate(progress_bar):
             if self.test:
@@ -211,30 +213,37 @@ class trainer:
             inputs = batch["image"].float().to(self.cfg.device)
             labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
             aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
-            ids = batch["prediction_id"]
+            all_prediction_ids.extend(batch["prediction_id"])
+            all_patient_ids.extend(batch["patient_id"])
+            all_image_ids.extend(batch["image_id"])
 
             outputs_list = self.model(inputs, *aux_input_list)
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                 label_dic[self.out_classes[i]].extend(labels_list[i].detach().cpu().numpy()[:,0])
-            all_ids.extend(ids)
+            
 
-        df = pd.DataFrame.from_dict(all_ids)
+        df = pd.DataFrame.from_dict(all_prediction_ids)
         df.columns = ["prediction_id"]
+        df["patient_id"] = all_patient_ids
+        df["image_id"] = all_image_ids
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_labels"] = label_dic[self.out_classes[i]]
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-
-        BINSCORE, LOSS, data_lib = self.print_write(df, epoch, self.out_classes[0], train)
-        for i in range(1, len(self.out_classes)):
-            _, _, lib = self.print_write(df, epoch, self.out_classes[i], train)
-            data_lib.update(lib)
+        
+        for id in self.cfg.evaluation_by:
+            if id == by: 
+                BINSCORE, LOSS, data_lib = self.print_write(df, epoch, self.out_classes[0], train, by=id)
+                for i in range(1, len(self.out_classes)):
+                    _, _, lib = self.print_write(df, epoch, self.out_classes[i], train, by=id)
+                    data_lib.update(lib)
+            else: _, _, _ = self.print_write(df, epoch, self.out_classes[0], train, by=id)
 
         return BINSCORE, LOSS, data_lib
     
-    def print_write(self, df, epoch, cls, train="Val"):
+    def print_write(self, df, epoch, cls, train="Val", by="prediction_id"):
         
-        all_labels = np.array(df.groupby(["prediction_id"]).agg({f"{cls}_labels": "max"})[f"{cls}_labels"])
+        all_labels = np.array(df.groupby([by]).agg({f"{cls}_labels": "max"})[f"{cls}_labels"])
         all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls)
 
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
@@ -247,22 +256,24 @@ class trainer:
         cls = cls[:3].capitalize()
         if cls == "Cancer"[:3]: cls = ""
         if cls !="": cls = cls + " "
-        print(cls)
+        print(cls, by)
         print(f"{cls}Pos {train} F1: ", round(score,3), f"{cls}Pos {train} Bin F1: ", round(bin_score,3), f"{cls}{train} Threshold: ", threshold, f"{cls}{train} SelectedP: ", selectedp, f"{cls}{train} AUC: ", round(auc,3))
         print(f"{cls}{train} Loss: ", round(loss,3), f"{cls}Pos {train} Loss: ", round(loss_1,3), f"{cls}Neg {train} Loss: ", round(loss_0,3))
         print(f"{cls}Pos {train} Recall ", round(recall,3), f"{cls}Pos {train} Precision ", round(precision,3))
         print(f"{cls}Pos Bin {train} Recall ", round(bin_recall,3), f"{cls}Pos Bin {train} Precision ", round(bin_precision,3))
 
-        self.writer.add_scalar(f"{cls}Pos {train} F1", score, epoch)
-        self.writer.add_scalar(f"{cls}Pos {train} Bin F1", bin_score, epoch)
-        self.writer.add_scalar(f"{cls}Pos {train} Recall", recall, epoch)
-        self.writer.add_scalar(f"{cls}Pos {train} Precision", precision, epoch)
-        self.writer.add_scalar(f"{cls}Pos Bin {train} Recall", bin_recall, epoch)
-        self.writer.add_scalar(f"{cls}Pos Bin {train} Precision", bin_precision, epoch)
-        self.writer.add_scalar(f"{cls}Pos {train} Loss", loss_1, epoch)
-        self.writer.add_scalar(f"{cls}Neg {train} Loss", loss_0, epoch)
-        self.writer.add_scalar(f"{cls}{train} Loss", loss, epoch)
-        self.writer.add_scalar(f"{cls}{train} AUC", auc, epoch)
+        if by != "prediction_id": by += "/"
+        elif by == "prediction_id": by = ""
+        self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos {train} Bin F1", bin_score, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos {train} Recall", recall, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos {train} Precision", precision, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Recall", bin_recall, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Precision", bin_precision, epoch)
+        self.writer.add_scalar(f"{by}{cls}Pos {train} Loss", loss_1, epoch)
+        self.writer.add_scalar(f"{by}{cls}Neg {train} Loss", loss_0, epoch)
+        self.writer.add_scalar(f"{by}{cls}{train} Loss", loss, epoch)
+        self.writer.add_scalar(f"{by}{cls}{train} AUC", auc, epoch)
 
         data_lib = {
             f"Result/{cls}Pos {train} F1":score,

@@ -25,6 +25,7 @@ class trainer:
                  loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
+                 fold = 0,
                  ):
         
         set_seed(cfg.seed)
@@ -36,18 +37,26 @@ class trainer:
                     groups=df["patient_id"].values,
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
-        
-        val_df = self.df[self.df["fold"] == cfg.fold]
-        train_df = self.df[self.df["fold"] != cfg.fold]
+        self.fold = fold
+        self.val_df = self.df[self.df["fold"] == self.fold]
+        self.train_df = self.df[self.df["fold"] != self.fold]
 
-        self.train_dataset = CustomDataset(df=train_df, cfg=cfg, Train=True)
-        self.val_dataset = CustomDataset(df=val_df, cfg=cfg, Train=False)
+        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
+        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
         print("train: ", len(self.train_dataset), " val: ", len(self.val_dataset))
-        print("Train Pos: ", train_df['cancer'].sum(), "Val_Pos: ", val_df['cancer'].sum())
+        print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
         self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None)
         self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
 
         self.model = model.to(cfg.device)
+        if cfg.weights is not None:
+            self.model.load_state_dict(
+                torch.load(cfg.weights)[
+                    "model"
+                ]
+            )
+            print(f"weights from: {cfg.weights} are loaded.")
+
 
         if cfg.optimizer == "AdamW": self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
         elif cfg.optimizer == "Adam": self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
@@ -195,12 +204,15 @@ class trainer:
         self.writer.add_scalar(f"{label}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{label}Train AUC", auc, epoch)
 
-    def run_eval(self, model, epoch, train="Val", by="prediction_id"):
+    def run_eval(self, model, epoch, train="Val"):
         model.eval()
         torch.set_grad_enabled(False)
-
-        progress_bar = tqdm(range(len(self.val_dataloader)))
-        tr_it = iter(self.val_dataloader)
+        if train == "Val":
+            progress_bar = tqdm(range(len(self.val_dataloader)))
+            tr_it = iter(self.val_dataloader)
+        elif train == "Train":
+            progress_bar = tqdm(range(len(self.train_dataloader)))
+            tr_it = iter(self.train_dataloader)
 
         label_dic = {f'{i}': [] for i in self.out_classes}
         out_dic = {f'{i}': [] for i in self.out_classes}
@@ -234,7 +246,7 @@ class trainer:
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
         
         for id in self.cfg.evaluation_by:
-            if id == by: 
+            if id == self.cfg.evalSaveID: 
                 BINSCORE, LOSS, data_lib = self.print_write(df, epoch, self.out_classes[0], train, by=id)
                 for i in range(1, len(self.out_classes)):
                     _, _, lib = self.print_write(df, epoch, self.out_classes[i], train, by=id)
@@ -378,3 +390,67 @@ class trainer:
         self.best_metric.update(self.best_Loss_metric)
         self.best_metric.update(train_metric)
         self.writer.add_hparams(self.hparams, self.best_metric)
+    
+    def predict(self):
+        self.model.eval()
+        torch.set_grad_enabled(False)
+        self.cfg.tta = A.Compose([
+                # flip
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5)
+                ])
+        
+        self.cfg.Trans = A.Compose([
+                # flip
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5)
+                ])
+        
+        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
+        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
+        self.train_dataloader = get_val_dataloader(self.train_dataset, cfg, sampler=None)
+        self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
+
+        progress_bar = tqdm(range(len(self.train_dataloader)))
+        tr_it = iter(self.train_dataloader)
+
+        out_dic = {f'{i}': [] for i in self.out_classes}
+        all_image_ids = []
+
+        for i, itr in enumerate(progress_bar):
+            if self.cfg.test_iter is not None:
+                if i == self.cfg.test_iter: break
+            batch = next(tr_it)
+            inputs = batch["image"].float().to(self.cfg.device)
+            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
+            all_image_ids.extend(batch["image_id"])
+
+            outputs_list = self.model(inputs, *aux_input_list)
+            for i in range(len(self.out_classes)):
+                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+
+        for i in range(len(self.out_classes)):
+            self.train_df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+        
+        progress_bar = tqdm(range(len(self.val_dataloader)))
+        tr_it = iter(self.val_dataloader)
+
+        out_dic = {f'{i}': [] for i in self.out_classes}
+        all_image_ids = []
+
+        for i, itr in enumerate(progress_bar):
+            if self.cfg.test_iter is not None:
+                if i == self.cfg.test_iter: break
+            batch = next(tr_it)
+            inputs = batch["image"].float().to(self.cfg.device)
+            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
+            all_image_ids.extend(batch["image_id"])
+
+            outputs_list = self.model(inputs, *aux_input_list)
+            for i in range(len(self.out_classes)):
+                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+
+        for i in range(len(self.out_classes)):
+            self.val_df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+
+        return self.train_df, self.val_df

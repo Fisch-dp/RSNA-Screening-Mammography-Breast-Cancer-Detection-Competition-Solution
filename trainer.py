@@ -408,7 +408,7 @@ class trainer:
         
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
         self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-        self.train_dataloader = get_val_dataloader(self.train_dataset, cfg, sampler=None)
+        self.train_dataloader = get_val_dataloader(self.train_dataset, cfg)
         self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
 
         progress_bar = tqdm(range(len(self.train_dataloader)))

@@ -119,3 +119,20 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     df_out = df_out.astype({"fold": 'int64'})
 
     return df_out
+
+def get_probability_hist(df_list, df_names=["Train", "Val"]):
+    fig, axes = plt.subplots(2, 2, figsize=(10,10))
+    plt.subplots_adjust(hspace=0.2)
+    for i,cls in enumerate(cfg.out_classes):
+        for j, df in enumerate(df_list):
+            df[f"{cfg.out_classes[i]}_outputs"] 
+            class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
+            class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
+
+            axes[i,j].hist(class0, bins=10, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
+            axes[i,j].hist(class1, bins=10, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
+            axes[i,j].legend()
+            axes[i,j].set_xlabel("Output Probabilities")
+            axes[i,j].set_ylabel("Distribution of samples")
+            axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
+    plt.show()

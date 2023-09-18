@@ -30,10 +30,8 @@ def set_seed(seed):
 
 def get_train_dataloader(train_dataset, cfg, sampler=None):
     shu = True
-    dL = True
     if sampler is not None: 
         shu = False
-        dL = True
 
     train_dataloader = DataLoader(
         train_dataset,
@@ -43,7 +41,7 @@ def get_train_dataloader(train_dataset, cfg, sampler=None):
         num_workers=cfg.num_workers,
         pin_memory=False,
         collate_fn=None,
-        drop_last=dL,
+        drop_last=True,
     )
 
     return train_dataloader

@@ -216,8 +216,8 @@ class trainer:
             df = self.train_df.copy()
         dataloader = get_val_dataloader(dataset, cfg)
 
-        progress_bar = tqdm(range(len(self.train_dataloader)))
-        tr_it = iter(self.dataloader)
+        progress_bar = tqdm(range(len(dataloader)))
+        tr_it = iter(dataloader)
 
         out_dic = {f'{i}': [] for i in self.out_classes}
         all_image_ids = []

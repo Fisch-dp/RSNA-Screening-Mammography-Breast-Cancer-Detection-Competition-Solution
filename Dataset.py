@@ -56,7 +56,7 @@ class CustomDataset(Dataset):
                                (cfg.img_size[0], cfg.img_size[1]), 
                                interpolation = cv2.INTER_LINEAR)
             if (cfg.Trans is not None and self.Train):
-                image = cfg.Trans(image=image)
+                image = cfg.Trans(image=image)['image']
             data['image'] += (image.transpose(2,1,0) / 255)
             data['image'] /= 2
 

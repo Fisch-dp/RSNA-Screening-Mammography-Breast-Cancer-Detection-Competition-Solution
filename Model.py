@@ -26,4 +26,4 @@ class Model(nn.Module):
         x = torch.cat([x, cancer], axis=1)
         invasive = self.auxclassifier1(x)
         
-        return (cancer, invasive)
+        return [cancer, invasive]

@@ -44,6 +44,10 @@ class CustomDataset(Dataset):
                                    (cfg.img_size[0], cfg.img_size[1]), 
                                    interpolation = cv2.INTER_LINEAR).astype(np.float32)
         
+        if (cfg.Trans is not None and self.Train):
+            data["image"] = cfg.Trans(image=data['image'])['image']
+        data['image'] = data['image'].transpose(2,1,0) / 255
+        
         if (sample.difficult_negative_case == 1 ) and self.Train and random.random() < 0.5 and cfg.invert_difficult:
             data['cancer'] = 1
             sample = self.df.iloc[np.random.choice(self.df[self.df['cancer'] == 1].index)]
@@ -51,12 +55,11 @@ class CustomDataset(Dataset):
             image = cv2.resize(image, 
                                (cfg.img_size[0], cfg.img_size[1]), 
                                interpolation = cv2.INTER_LINEAR)
-            data['image'] += image.astype(np.float32) 
-            data['image'] = data['image'] / 2
-        
-        if (cfg.Trans is not None and self.Train):
-            data["image"] = cfg.Trans(image=data['image'])['image']
-        data['image'] = data['image'].transpose(2,1,0) / 255
+            if (cfg.Trans is not None and self.Train):
+                image = cfg.Trans(image=image)
+            data['image'] += image / 255
+            data['image'] /= 2
+
         return data
 
     def __len__(self):

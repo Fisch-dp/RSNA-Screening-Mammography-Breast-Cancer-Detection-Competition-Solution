@@ -42,7 +42,7 @@ class CustomDataset(Dataset):
         data['image'] = cv2.imread(data['image'])
         data['image'] = cv2.resize(data['image'], 
                                    (cfg.img_size[0], cfg.img_size[1]), 
-                                   interpolation = cv2.INTER_LINEAR)
+                                   interpolation = cv2.INTER_LINEAR).astype(np.float32)
         
         if (sample.difficult_negative_case == 1 ) and self.Train and random.random() < 0.5 and cfg.invert_difficult:
             data['cancer'] = 1
@@ -51,8 +51,8 @@ class CustomDataset(Dataset):
             image = cv2.resize(image, 
                                (cfg.img_size[0], cfg.img_size[1]), 
                                interpolation = cv2.INTER_LINEAR)
-            data['image'] += image
-            data['image'] = data['image'].astype(np.float32) / 2
+            data['image'] += image.astype(np.float32) 
+            data['image'] = data['image'] / 2
         
         if (cfg.Trans is not None and self.Train):
             data["image"] = cfg.Trans(image=data['image'])['image']

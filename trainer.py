@@ -169,9 +169,8 @@ class trainer:
             self.optimizer.zero_grad()
             self.scheduler.step()
             
-            out_print = f"{self.out_classes[0]}_loss: {np.mean(out_dic[self.out_classes[0]]):.2f}"
-            for i in range(1, len(self.out_classes)):
-                out_print += f", {self.out_classes[i]}_loss: {np.mean(out_dic[self.out_classes[i]]):.2f}"
+            out_print = ""
+            for cls in self.out_classes: out_print += f", {cls}_loss: {np.mean(loss_dic[cls]):.2f}"
             out_print += f", lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
         

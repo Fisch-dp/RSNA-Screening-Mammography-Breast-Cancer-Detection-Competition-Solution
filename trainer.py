@@ -389,20 +389,7 @@ class trainer:
             score, loss, val_metric = self.run_eval(self.model, epoch, train="Val")
             self.saving_best(score, loss, val_metric, epoch)
 
-        _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
-
-        for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
-
-        self.best_metric.update(self.best_Loss_metric)
-        self.best_metric.update(train_metric)
-        self.writer.add_hparams(self.hparams, self.best_metric)
-        for epoch in range(self.cfg.epochs):
-            print("EPOCH:", epoch)
-            self.run_train(epoch)
-            score, loss, val_metric = self.run_eval(self.model, epoch, train="Val")
-            self.saving_best(score, loss, val_metric, epoch)
-
-        _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
+        _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Train")
 
         for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
 

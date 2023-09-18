@@ -38,12 +38,13 @@ class CustomDataset(Dataset):
             "view": np.array(sample['view'], dtype=np.int8)  
         }
         
-        data['image'] = cv2.imread(data['image'],cv2.IMREAD_GRAYSCALE)
+        data['image'] = cv2.imread(data['image'])
+        data['image'] = cv2.resize(data['image'], 
+                                   (cfg.img_size[0], cfg.img_size[1]), 
+                                   interpolation = cv2.INTER_LINEAR)
         if (cfg.Trans is not None and self.Train):
-            data['image'] = data['image'].transpose(1,2,0) * 255
-            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
-            data['image'] = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)(image=data['image'])['image']
-            data['image'] = data['image'].to(torch.float32) / 255
+            data["image"] = cfg.Trans(image=data['image'])['image']
+        data['image'] = data['image'].transpose(2,1,0) / 255
         return data
 
     def __len__(self):

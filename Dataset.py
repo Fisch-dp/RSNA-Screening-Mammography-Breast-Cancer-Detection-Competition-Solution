@@ -7,6 +7,7 @@ from config import *
 from utils import *
 from torch.utils.data import DataLoader, Dataset
 import torch
+import random
 
 class CustomDataset(Dataset):
     def __init__(
@@ -42,6 +43,17 @@ class CustomDataset(Dataset):
         data['image'] = cv2.resize(data['image'], 
                                    (cfg.img_size[0], cfg.img_size[1]), 
                                    interpolation = cv2.INTER_LINEAR)
+        
+        if (sample.difficult_negative_case == 1 ) and self.Train and random.random() < 0.5 and cfg.invert_difficult:
+            data['cancer'] = 1
+            sample = self.df.iloc[np.random_choice(self.df[self.df['cancer'] == 1].index)]
+            image = os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
+            image = cv2.imread(image)
+            image = cv2.resize(image, 
+                               (cfg.img_size[0], cfg.img_size[1]), 
+                               interpolation = cv2.INTER_LINEAR)
+            data['image'] += image / 2
+        
         if (cfg.Trans is not None and self.Train):
             data["image"] = cfg.Trans(image=data['image'])['image']
         data['image'] = data['image'].transpose(2,1,0) / 255

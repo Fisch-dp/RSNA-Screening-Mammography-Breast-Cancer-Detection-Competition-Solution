@@ -39,6 +39,7 @@ cfg.AugStrength = 1
 cfg.num_folds = 4
 cfg.seed = 42
 cfg.df_y = "cancer"
+cfg.invert_difficult = False
 
 # model
 cfg.backbone = f"tf_efficientnetv2_s"

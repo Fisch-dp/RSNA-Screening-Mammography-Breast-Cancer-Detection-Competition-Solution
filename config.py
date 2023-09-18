@@ -50,5 +50,5 @@ cfg.drop_path_rate = 0.2
 
 # Eval
 cfg.evaluation_by = ["image_id", "prediction_id", "patient_id"]
-cfg.tta = None
+cfg.tta = False #True
 cfg.evalSaveID = "prediction_id"

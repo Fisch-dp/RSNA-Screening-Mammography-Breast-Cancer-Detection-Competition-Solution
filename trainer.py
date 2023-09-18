@@ -204,46 +204,47 @@ class trainer:
         self.writer.add_scalar(f"{label}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{label}Train AUC", auc, epoch)
 
-    def run_eval(self, model, epoch, train="Val"):
-        model.eval()
+    def predict(self, train="Val"):
+        self.model.eval()
         torch.set_grad_enabled(False)
+        
         if train == "Val":
-            progress_bar = tqdm(range(len(self.val_dataloader)))
-            tr_it = iter(self.val_dataloader)
+            dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
+            df = self.val_df.copy()
         elif train == "Train":
-            progress_bar = tqdm(range(len(self.train_dataloader)))
-            tr_it = iter(self.train_dataloader)
+            dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
+            df = self.train_df.copy()
+        dataloader = get_val_dataloader(dataset, cfg)
 
-        label_dic = {f'{i}': [] for i in self.out_classes}
+        progress_bar = tqdm(range(len(self.train_dataloader)))
+        tr_it = iter(self.dataloader)
+
         out_dic = {f'{i}': [] for i in self.out_classes}
-        all_prediction_ids = []
-        all_patient_ids = []
         all_image_ids = []
-
-        for i, itr in enumerate(progress_bar):
+        
+        for i, _ in enumerate(progress_bar):
             if self.cfg.test_iter is not None:
                 if i == self.cfg.test_iter: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
             aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
-            all_prediction_ids.extend(batch["prediction_id"])
-            all_patient_ids.extend(batch["patient_id"])
             all_image_ids.extend(batch["image_id"])
 
-            outputs_list = self.model(inputs, *aux_input_list)
+            with autocast():
+                outputs_list = self.model(inputs, *aux_input_list)
+                if self.cfg.tta:
+                    outputs_list += self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list)
+                    outputs_list /= 2
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                label_dic[self.out_classes[i]].extend(labels_list[i].detach().cpu().numpy()[:,0])
-            
 
-        df = pd.DataFrame.from_dict(all_prediction_ids)
-        df.columns = ["prediction_id"]
-        df["patient_id"] = all_patient_ids
-        df["image_id"] = all_image_ids
         for i in range(len(self.out_classes)):
-            df[f"{self.out_classes[i]}_labels"] = label_dic[self.out_classes[i]]
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+        
+        return df
+
+    def run_eval(self, model, epoch, train="Val"):
+        df = self.predict(train)
         
         for id in self.cfg.evaluation_by:
             if id == self.cfg.evalSaveID: 
@@ -309,8 +310,8 @@ class trainer:
         bin_score = -0.01
         threshold = 0.0
         selectedp = 1.0
-        bin_recall = -0.01
-        bin_precision = -0.01
+        bin_recall = 0.0
+        bin_precision = 0.0
 
         iter = [1,2,3,4,5,6,7,8,9,10,100]
         if cls != "cancer": iter = [1]
@@ -390,67 +391,3 @@ class trainer:
         self.best_metric.update(self.best_Loss_metric)
         self.best_metric.update(train_metric)
         self.writer.add_hparams(self.hparams, self.best_metric)
-    
-    def predict(self):
-        self.model.eval()
-        torch.set_grad_enabled(False)
-        self.cfg.tta = A.Compose([
-                # flip
-                A.HorizontalFlip(p=0.5),
-                A.VerticalFlip(p=0.5)
-                ])
-        
-        self.cfg.Trans = A.Compose([
-                # flip
-                A.HorizontalFlip(p=0.5),
-                A.VerticalFlip(p=0.5)
-                ])
-        
-        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-        self.train_dataloader = get_val_dataloader(self.train_dataset, cfg)
-        self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
-
-        progress_bar = tqdm(range(len(self.train_dataloader)))
-        tr_it = iter(self.train_dataloader)
-
-        out_dic = {f'{i}': [] for i in self.out_classes}
-        all_image_ids = []
-
-        for i, itr in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:
-                if i == self.cfg.test_iter: break
-            batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
-            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
-            all_image_ids.extend(batch["image_id"])
-
-            outputs_list = self.model(inputs, *aux_input_list)
-            for i in range(len(self.out_classes)):
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-
-        for i in range(len(self.out_classes)):
-            self.train_df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-        
-        progress_bar = tqdm(range(len(self.val_dataloader)))
-        tr_it = iter(self.val_dataloader)
-
-        out_dic = {f'{i}': [] for i in self.out_classes}
-        all_image_ids = []
-
-        for i, itr in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:
-                if i == self.cfg.test_iter: break
-            batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
-            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
-            all_image_ids.extend(batch["image_id"])
-
-            outputs_list = self.model(inputs, *aux_input_list)
-            for i in range(len(self.out_classes)):
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-
-        for i in range(len(self.out_classes)):
-            self.val_df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-
-        return self.train_df, self.val_df

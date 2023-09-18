@@ -46,7 +46,7 @@ class CustomDataset(Dataset):
         
         if (sample.difficult_negative_case == 1 ) and self.Train and random.random() < 0.5 and cfg.invert_difficult:
             data['cancer'] = 1
-            sample = self.df.iloc[np.random_choice(self.df[self.df['cancer'] == 1].index)]
+            sample = self.df.iloc[np.random.choice(self.df[self.df['cancer'] == 1].index)]
             image = os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
             image = cv2.imread(image)
             image = cv2.resize(image, 

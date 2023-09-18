@@ -20,12 +20,10 @@ import cv2
 from sklearn.metrics import roc_auc_score
 import timm
 import matplotlib.pyplot as plt
-from monai.utils import set_determinism
 from sklearn.model_selection import StratifiedGroupKFold
 from config import *
 
 def set_seed(seed):
-    set_determinism(seed=seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 

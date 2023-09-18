@@ -30,7 +30,7 @@ def set_seed(seed):
 
 def get_train_dataloader(train_dataset, cfg, sampler=None):
     shu = True
-    dL = False
+    dL = True
     if sampler is not None: 
         shu = False
         dL = True

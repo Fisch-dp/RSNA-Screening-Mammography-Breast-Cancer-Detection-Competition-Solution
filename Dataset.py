@@ -42,7 +42,7 @@ class CustomDataset(Dataset):
         data['image'] = cv2.imread(data['image'])
         data['image'] = cv2.resize(data['image'], 
                                    (cfg.img_size[0], cfg.img_size[1]), 
-                                   interpolation = cv2.INTER_LINEAR).astype(np.float32)
+                                   interpolation = cv2.INTER_LINEAR)
         
         if (cfg.Trans is not None and self.Train):
             data["image"] = cfg.Trans(image=data['image'])['image']

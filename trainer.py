@@ -233,11 +233,14 @@ class trainer:
             with autocast():
                 outputs_list = self.model(inputs, *aux_input_list)
                 if self.cfg.tta:
-                    outputs_list += self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list)
-                    outputs_list /= 2
+                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list))]
+                    
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-
+        
+        all_image_ids = [k.item() for k in all_image_ids]
+        if self.cfg.test_iter is not None:
+            df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
         
@@ -246,19 +249,21 @@ class trainer:
     def run_eval(self, model, epoch, train="Val"):
         df = self.predict(train)
         
-        for id in self.cfg.evaluation_by:
-            if id == self.cfg.evalSaveID: 
-                BINSCORE, LOSS, data_lib = self.print_write(df, epoch, self.out_classes[0], train, by=id)
-                for i in range(1, len(self.out_classes)):
-                    _, _, lib = self.print_write(df, epoch, self.out_classes[i], train, by=id)
+        for cls in self.out_classes:
+            for k in self.cfg.evaluation_by:
+                if k == self.cfg.evalSaveID and cls == self.out_classes[0]: 
+                    BINSCORE, LOSS, data_lib = self.print_write(df, epoch, cls, train, by=k)
+                elif k == self.cfg.evalSaveID and cls != self.out_classes[0]:
+                    _, _, lib = self.print_write(df, epoch, cls, train, by=k)
                     data_lib.update(lib)
-            else: _, _, _ = self.print_write(df, epoch, self.out_classes[0], train, by=id)
+                elif k != self.cfg.evalSaveID and cls == self.out_classes[0]:
+                    _, _, _ = self.print_write(df, epoch, cls, train, by=k)
 
         return BINSCORE, LOSS, data_lib
     
     def print_write(self, df, epoch, cls, train="Val", by="prediction_id"):
         
-        all_labels = np.array(df.groupby([by]).agg({f"{cls}_labels": "max"})[f"{cls}_labels"])
+        all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
         all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
 
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
@@ -378,6 +383,19 @@ class trainer:
             )
                 
     def fit(self):
+        for epoch in range(self.cfg.epochs):
+            print("EPOCH:", epoch)
+            self.run_train(epoch)
+            score, loss, val_metric = self.run_eval(self.model, epoch, train="Val")
+            self.saving_best(score, loss, val_metric, epoch)
+
+        _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Val")
+
+        for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
+
+        self.best_metric.update(self.best_Loss_metric)
+        self.best_metric.update(train_metric)
+        self.writer.add_hparams(self.hparams, self.best_metric)
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.run_train(epoch)

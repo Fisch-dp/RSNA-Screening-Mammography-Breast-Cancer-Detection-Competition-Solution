@@ -174,14 +174,9 @@ class trainer:
             out_print += f", lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
         
-        for i in range(len(self.out_classes)):
-            label = self.out_classes[i][:3].capitalize()
-            print(label)
-            if self.out_classes[i] == "Cancer"[:3]:
-                label = ""
-            self.train_print(label_dic[self.out_classes[i]], out_dic[self.out_classes[i]], epoch, label=label)
+        for i in self.out_classes: self.train_print(label_dic[i], out_dic[i], epoch, cls=i)
     
-    def train_print(self, all_labels, all_outputs, epoch, label=""):
+    def train_print(self, all_labels, all_outputs, epoch, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
 
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -189,19 +184,21 @@ class trainer:
         loss_0 = float((loss * (1-torch.tensor(all_labels))).mean())
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
-        if label !="":
-            label = label + " "
-        print(f"{label}Pos Train F1: ", round(score,3), f"{label}Train AUC: ", round(auc,3))
-        print(f"{label}Train Loss: ", round(loss,3), f"{label}Pos Train Loss: ", round(loss_1,3), f"{label}Neg Train Loss: ", round(loss_0,3))
-        print(f"{label}Pos Train Recall ", round(recall,3), f"{label}Pos Train Precision ", round(precision,3))
 
-        self.writer.add_scalar(f"{label}Pos Train F1", score, epoch)
-        self.writer.add_scalar(f"{label}Pos Train Recall", recall, epoch)
-        self.writer.add_scalar(f"{label}Pos Train Precision", precision, epoch)
-        self.writer.add_scalar(f"{label}Pos Train Loss", loss_1, epoch)
-        self.writer.add_scalar(f"{label}Neg Trian Loss", loss_0, epoch)
-        self.writer.add_scalar(f"{label}Train Loss", loss, epoch)
-        self.writer.add_scalar(f"{label}Train AUC", auc, epoch)
+        cls = cls[:3].capitalize() + " "
+            
+        print(f"{cls}Pos Train F1: ", round(score,3), f"{cls}Train AUC: ", round(auc,3))
+        print(f"{cls}Train Loss: ", round(loss,3), f"{cls}Pos Train Loss: ", round(loss_1,3), f"{label}Neg Train Loss: ", round(loss_0,3))
+        print(f"{cls}Pos Train Recall ", round(recall,3), f"{cls}Pos Train Precision ", round(precision,3))
+
+        cls = cls[:-1] + "/"
+        self.writer.add_scalar(f"{cls}Pos Train F1", score, epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Recall", recall, epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Precision", precision, epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Loss", loss_1, epoch)
+        self.writer.add_scalar(f"{cls}Neg Trian Loss", loss_0, epoch)
+        self.writer.add_scalar(f"{cls}Train Loss", loss, epoch)
+        self.writer.add_scalar(f"{cls}Train AUC", auc, epoch)
 
     def predict(self, train="Val"):
         self.model.eval()
@@ -272,17 +269,19 @@ class trainer:
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
         
-        cls = cls[:3].capitalize()
-        if cls == "Cancer"[:3]: cls = ""
-        if cls !="": cls = cls + " "
-        print(cls, by)
+        cls = cls[:3].capitalize() + " "
+        print()
+        print(f"{cls}{by}")
         print(f"{cls}Pos {train} F1: ", round(score,3), f"{cls}Pos {train} Bin F1: ", round(bin_score,3), f"{cls}{train} Threshold: ", threshold, f"{cls}{train} SelectedP: ", selectedp, f"{cls}{train} AUC: ", round(auc,3))
         print(f"{cls}{train} Loss: ", round(loss,3), f"{cls}Pos {train} Loss: ", round(loss_1,3), f"{cls}Neg {train} Loss: ", round(loss_0,3))
         print(f"{cls}Pos {train} Recall ", round(recall,3), f"{cls}Pos {train} Precision ", round(precision,3))
         print(f"{cls}Pos Bin {train} Recall ", round(bin_recall,3), f"{cls}Pos Bin {train} Precision ", round(bin_precision,3))
 
         if by != "prediction_id": by += "/"
-        elif by == "prediction_id": by = ""
+        elif by == "prediction_id": 
+            by = ""
+            cls = cls[:-1] + "/"
+
         self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)
         self.writer.add_scalar(f"{by}{cls}Pos {train} Bin F1", bin_score, epoch)
         self.writer.add_scalar(f"{by}{cls}Pos {train} Recall", recall, epoch)
@@ -294,6 +293,7 @@ class trainer:
         self.writer.add_scalar(f"{by}{cls}{train} Loss", loss, epoch)
         self.writer.add_scalar(f"{by}{cls}{train} AUC", auc, epoch)
 
+        cls = cls[:-1]
         data_lib = {
             f"Result/{cls}Pos {train} F1":score,
             f"Result/{cls}Pos {train} Bin F1":bin_score,
@@ -390,7 +390,7 @@ class trainer:
 
         _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Train")
 
-        for i in self.best_Loss_metric.keys(): self.best_Loss_metric[f'Loss_{i}'] = self.best_Loss_metric.pop(f'{i}')
+        self.best_Loss_metric = {f'Loss_{i}': self.best_Loss_metric[i] for i in self.best_Loss_metric}
 
         self.best_metric.update(self.best_Loss_metric)
         self.best_metric.update(train_metric)

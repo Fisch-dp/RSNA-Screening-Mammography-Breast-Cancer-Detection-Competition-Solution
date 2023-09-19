@@ -48,9 +48,11 @@ class CustomDataset(Dataset):
             data["image"] = cfg.Trans(image=data['image'])['image']
         data['image'] = data['image'].transpose(2,1,0) / 255
         
-        if (sample.difficult_negative_case == 1 ) and self.Train and random.random() < 0.5 and cfg.invert_difficult:
-            sample = self.df.iloc[np.random.choice(self.df[self.df['cancer'] == 1].index)]
+        if sample.difficult_negative_case == 1 and sample.biopsy == 1 and self.Train and random.random() < cfg.invert_difficult:
+            mask = self.df.query(f'cancer == 1 & implant == {sample.implant} & site_id == {sample.site_id} & view == {sample["view"]}')
+            sample = self.df.iloc[np.random.choice(mask.index)]
             data['cancer'] = np.expand_dims(np.array(sample.cancer, dtype=np.int8), axis=0)
+            data['invasive'] = np.expand_dims(np.array(sample.invasive, dtype=np.int8), axis=0)
             image = cv2.imread(os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"))
             image = cv2.resize(image, 
                                (cfg.img_size[0], cfg.img_size[1]), 

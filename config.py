@@ -39,7 +39,7 @@ cfg.AugStrength = 1
 cfg.num_folds = 4
 cfg.seed = 42
 cfg.df_y = "cancer"
-cfg.invert_difficult = False
+cfg.invert_difficult = 0.5#larger -> more inverts
 
 # model
 cfg.backbone = f"tf_efficientnetv2_s"

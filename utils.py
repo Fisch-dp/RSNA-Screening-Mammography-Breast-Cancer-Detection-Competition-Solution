@@ -91,13 +91,15 @@ def pfbeta(labels, predictions, beta):
             cfp += prediction
     beta_squared = beta * beta
 
-    try: c_precision = ctp / (ctp + cfp)
-    except: pass
-    try: c_recall = ctp / y_true_count
-    except: pass
-    try: result = (1 + beta_squared) * (c_precision * c_recall) / (beta_squared * c_precision + c_recall)
-    except: pass
-    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try: c_precision = ctp / (ctp + cfp)
+        except: pass
+        try: c_recall = ctp / y_true_count
+        except: pass
+        try: result = (1 + beta_squared) * (c_precision * c_recall) / (beta_squared * c_precision + c_recall)
+        except: pass
+        
     return float(result), float(c_recall), float(c_precision)
 
 def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):

@@ -188,7 +188,7 @@ class trainer:
         cls = cls[:3].capitalize() + " "
             
         print(f"{cls}Pos Train F1: ", round(score,3), f"{cls}Train AUC: ", round(auc,3))
-        print(f"{cls}Train Loss: ", round(loss,3), f"{cls}Pos Train Loss: ", round(loss_1,3), f"{label}Neg Train Loss: ", round(loss_0,3))
+        print(f"{cls}Train Loss: ", round(loss,3), f"{cls}Pos Train Loss: ", round(loss_1,3), f"{cls}Neg Train Loss: ", round(loss_0,3))
         print(f"{cls}Pos Train Recall ", round(recall,3), f"{cls}Pos Train Precision ", round(precision,3))
 
         cls = cls[:-1] + "/"

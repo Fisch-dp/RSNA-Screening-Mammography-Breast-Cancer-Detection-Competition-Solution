@@ -239,7 +239,7 @@ class trainer:
         if self.cfg.test_iter is not None:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
-            df[f"{self.out_classes[i]}_outputs"] = [out_dic[self.out_classes[i]][all_image_ids.index(j)] for j in df['image_id']]
+            df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
         
         return df
 

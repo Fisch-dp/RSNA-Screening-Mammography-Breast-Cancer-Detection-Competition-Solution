@@ -9,12 +9,18 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.model = timm.create_model(
         cfg.backbone,
-        pretrained=False,
+        pretrained=True,
         num_classes=cfg.num_classes,
         drop_rate=cfg.drop_rate,
         drop_path_rate=cfg.drop_path_rate,
         )
-
+        if cfg.weights is not None:
+            self.model.load_state_dict(
+                torch.load(cfg.weights)[
+                    "model"
+                ]
+            )
+            print(f"weights from: {cfg.weights} are loaded.")
         self.classifier = nn.Linear(in_features=1280 + 5, out_features=1, bias=True)
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + 5 + 1, out_features=1, bias=True)

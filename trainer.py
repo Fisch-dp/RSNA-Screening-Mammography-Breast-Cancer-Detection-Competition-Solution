@@ -208,6 +208,7 @@ class trainer:
             dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
             df = self.val_df.copy()
         elif train == "Train":
+            self.cfg.invert_difficult = 0.0
             dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
             df = self.train_df.copy()
         dataloader = get_val_dataloader(dataset, cfg)
@@ -282,16 +283,17 @@ class trainer:
             by = ""
             cls = cls[:-1] + "/"
 
-        self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos {train} Bin F1", bin_score, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos {train} Recall", recall, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos {train} Precision", precision, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Recall", bin_recall, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Precision", bin_precision, epoch)
-        self.writer.add_scalar(f"{by}{cls}Pos {train} Loss", loss_1, epoch)
-        self.writer.add_scalar(f"{by}{cls}Neg {train} Loss", loss_0, epoch)
-        self.writer.add_scalar(f"{by}{cls}{train} Loss", loss, epoch)
-        self.writer.add_scalar(f"{by}{cls}{train} AUC", auc, epoch)
+        if train == "Val":
+            self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos {train} Bin F1", bin_score, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos {train} Recall", recall, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos {train} Precision", precision, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Recall", bin_recall, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Precision", bin_precision, epoch)
+            self.writer.add_scalar(f"{by}{cls}Pos {train} Loss", loss_1, epoch)
+            self.writer.add_scalar(f"{by}{cls}Neg {train} Loss", loss_0, epoch)
+            self.writer.add_scalar(f"{by}{cls}{train} Loss", loss, epoch)
+            self.writer.add_scalar(f"{by}{cls}{train} AUC", auc, epoch)
 
         cls = cls[:-1]
         data_lib = {

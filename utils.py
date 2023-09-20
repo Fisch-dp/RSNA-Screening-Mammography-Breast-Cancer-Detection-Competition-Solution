@@ -52,6 +52,7 @@ def get_val_dataloader(val_dataset, cfg):
 
     val_dataloader = DataLoader(
         val_dataset,
+        sampler=torch.utils.data.SequentialSampler(),
         shuffle=False,
         batch_size=cfg.val_batch_size,
         num_workers=cfg.num_workers,

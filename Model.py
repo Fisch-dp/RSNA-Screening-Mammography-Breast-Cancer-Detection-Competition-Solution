@@ -21,6 +21,16 @@ class Model(nn.Module):
                 ]
             )
             print(f"weights from: {cfg.weights} are loaded.")
+        
+        if cfg.in_channels != 3:
+            self.model.conv_stem = nn.Conv2d(
+                cfg.in_channels,
+                self.model.conv_stem.out_channels,
+                kernel_size=self.model.conv_stem.kernel_size,
+                stride=self.model.conv_stem.stride,
+                padding=self.model.conv_stem.padding,
+                bias=self.model.conv_stem.bias,
+            )
         self.classifier = nn.Linear(in_features=1280 + 5, out_features=1, bias=True)
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + 5 + 1, out_features=1, bias=True)

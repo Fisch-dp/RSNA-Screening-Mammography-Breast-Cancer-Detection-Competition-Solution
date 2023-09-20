@@ -170,8 +170,8 @@ class trainer:
             self.scheduler.step()
             
             out_print = ""
-            for cls in self.out_classes: out_print += f", {cls}_loss: {np.mean(loss_dic[cls]):.2f}"
-            out_print += f", lr: {self.scheduler.get_last_lr()[-1]:.6f}"
+            for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
+            out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
         
         for i in self.out_classes: self.train_print(label_dic[i], out_dic[i], epoch, cls=i)
@@ -239,7 +239,7 @@ class trainer:
         if self.cfg.test_iter is not None:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
-            df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+            df[df["image_id" == all_image_ids]][f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
         
         return df
 

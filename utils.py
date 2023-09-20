@@ -48,11 +48,11 @@ def get_train_dataloader(train_dataset, cfg, sampler=None):
     return train_dataloader
 
 
-def get_val_dataloader(val_dataset, cfg):
+def get_val_dataloader(val_dataset, cfg, sampler=None):
 
     val_dataloader = DataLoader(
         val_dataset,
-        sampler=torch.utils.data.SequentialSampler(),
+        sampler=sampler,
         shuffle=False,
         batch_size=cfg.val_batch_size,
         num_workers=cfg.num_workers,

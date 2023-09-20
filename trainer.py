@@ -46,7 +46,7 @@ class trainer:
         print("train: ", len(self.train_dataset), " val: ", len(self.val_dataset))
         print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
         self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None)
-        self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
+        self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, sampler=torch.utils.data.SequentialSampler(self.val_dataset))
 
         self.model = model.to(cfg.device)
         if cfg.weights is not None:
@@ -211,7 +211,7 @@ class trainer:
             self.cfg.invert_difficult = 0.0
             dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
             df = self.train_df.copy()
-        dataloader = get_val_dataloader(dataset, cfg)
+        dataloader = get_val_dataloader(dataset, cfg, sampler=torch.utils.data.SequentialSampler(dataset))
 
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)

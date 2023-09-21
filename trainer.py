@@ -237,15 +237,12 @@ class trainer:
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                 label_dic[self.out_classes[i]].extend(labels_list[i].numpy()[:,0])
-        print(label_dic[self.out_classes[0]][:5])  
-        print(label_dic[self.out_classes[1]][:5])  
+
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-            print(df.head(), label_dic[self.out_classes[i]][:5])
-            print(self.out_classes[i], np.sum(np.array(df[self.out_classes[i]]) - np.array(label_dic[self.out_classes[i]])))
         return df
 
     def run_eval(self, model, epoch, train="Val"):

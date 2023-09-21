@@ -39,8 +39,8 @@ class trainer:
                     random_state=cfg.seed)
         self.fold = fold
 
-        self.val_df = self.df[self.df["fold"] == self.fold]
-        self.train_df = self.df[self.df["fold"] != self.fold]
+        self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)
+        self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
         self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)

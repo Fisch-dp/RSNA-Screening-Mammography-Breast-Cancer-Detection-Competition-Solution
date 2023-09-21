@@ -37,6 +37,15 @@ class trainer:
                     groups=df["patient_id"].values,
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
+        
+        df["prediction_id"] = df.patient_id.apply(str) + "_" + df.laterality
+        df = pd.concat([df[df["view"]=="MLO"] , df[df["view"]=="CC"]])
+
+        df['site_id'] -= 1
+        df['view'] = df['view'].map({'CC': 0, 'MLO': 1})
+        df['age'].fillna(df['age'].mean(), inplace=True)
+        df['machine_id'] = df['machine_id'].map({machine_id: idx for idx, machine_id in enumerate(sorted(df['machine_id'].unique()))})
+
         self.fold = fold
 
         self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)

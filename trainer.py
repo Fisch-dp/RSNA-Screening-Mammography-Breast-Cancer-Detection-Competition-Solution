@@ -226,7 +226,7 @@ class trainer:
                 if i == self.cfg.test_iter: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+            labels_list = [batch[cls] for cls in self.out_classes]
             aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
 
@@ -236,7 +236,7 @@ class trainer:
                 
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                label_dic[self.out_classes[i]].extend(torch.sigmoid(labels_list[i]).detach().cpu().numpy()[:,0])
+                label_dic[self.out_classes[i]].extend(labels_list[i].numpy()[:,0])
         print(label_dic[self.out_classes[0]][:5])  
         print(label_dic[self.out_classes[1]][:5])  
         all_image_ids = [k.item() for k in all_image_ids]

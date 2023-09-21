@@ -243,7 +243,8 @@ class trainer:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-            print(self.out_classes[i], df[self.out_classes[i]] - label_dic[self.out_classes[i]])
+            print(df.head(), label_dic[self.out_classes[i]][:5])
+            print(self.out_classes[i], np.sum(np.array(df[self.out_classes[i]]) - np.array(label_dic[self.out_classes[i]])))
         return df
 
     def run_eval(self, model, epoch, train="Val"):

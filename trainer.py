@@ -229,7 +229,6 @@ class trainer:
             labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
             aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
-            print(labels_list[:5])
 
             outputs_list = self.model(inputs, *aux_input_list)
             if self.cfg.tta:
@@ -238,7 +237,8 @@ class trainer:
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                 label_dic[self.out_classes[i]].extend(torch.sigmoid(labels_list[i]).detach().cpu().numpy()[:,0])
-                
+        print(label_dic[self.out_classes[0]][:5])  
+        print(label_dic[self.out_classes[1]][:5])  
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)

@@ -226,9 +226,10 @@ class trainer:
                 if i == self.cfg.test_iter: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
-            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+            aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
+            print(labels_list[:5])
 
             outputs_list = self.model(inputs, *aux_input_list)
             if self.cfg.tta:

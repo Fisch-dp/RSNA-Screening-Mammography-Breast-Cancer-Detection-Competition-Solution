@@ -31,21 +31,13 @@ class trainer:
         set_seed(cfg.seed)
         assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
+
         self.df = apply_StratifiedGroupKFold(
                     X=df,
                     y=df[df_y].values,
                     groups=df["patient_id"].values,
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
-        
-        self.df["prediction_id"] = self.df.patient_id.apply(str) + "_" + self.df.laterality
-        self.df = pd.concat([self.df[self.df["view"]=="MLO"] , self.df[self.df["view"]=="CC"]])
-
-        self.df['site_id'] -= 1
-        self.df['view'] = self.df['view'].map({'CC': 0, 'MLO': 1})
-        self.df['age'].fillna(self.df['age'].mean(), inplace=True)
-        self.df['machine_id'] = self.df['machine_id'].map({machine_id: idx for idx, machine_id in enumerate(sorted(self.df['machine_id'].unique()))})
-
         self.fold = fold
 
         self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)

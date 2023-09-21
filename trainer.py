@@ -38,6 +38,7 @@ class trainer:
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
         self.fold = fold
+
         self.val_df = self.df[self.df["fold"] == self.fold]
         self.train_df = self.df[self.df["fold"] != self.fold]
 
@@ -227,11 +228,10 @@ class trainer:
             aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
             all_image_ids.extend(batch["image_id"])
 
-            with autocast():
-                outputs_list = self.model(inputs, *aux_input_list)
-                if self.cfg.tta:
-                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list))]
-                    
+            outputs_list = self.model(inputs, *aux_input_list)
+            if self.cfg.tta:
+                outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list))]
+                
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
         

@@ -19,27 +19,39 @@ cfg.output_dir = f"./folds{1}/"
 # train  
 cfg.train = True
 cfg.eval = True
-cfg.eval_epochs = 1
 cfg.start_eval_epoch = 0
 cfg.amp = True
 cfg.val_amp = False
 cfg.num_workers = 2
+cfg.Lookahead = False
+cfg.lr = 3e-4
+cfg.min_lr = 1e-5
+cfg.weight_decay = 5e-2
+cfg.epochs = 10
 cfg.seed = -1
 cfg.eval_epochs = 1
 cfg.start_cal_metric_epoch = 1
 cfg.warmup = 1
-cfg.Lookahead = False
+cfg.run_tta_val = False
+cfg.lr_final_div = 10000.0
+#cfg.warmup_epoch = 1
+cfg.restart_epoch = 100
 
 # dataset
 cfg.img_size = (512,256)  
 cfg.batch_size = 64
 cfg.val_batch_size = 128
+cfg.train_cache_rate = 0.0
+cfg.val_cache_rate = 0.0
+cfg.gpu_cache = False
+cfg.val_gpu_cache = False
 cfg.Aug = True
 cfg.AugStrength = 1
 cfg.num_folds = 4
 cfg.seed = 42
 cfg.df_y = "cancer"
 cfg.invert_difficult = 0.5#larger -> more inverts
+
 
 # model
 cfg.backbone = f"tf_efficientnetv2_s"

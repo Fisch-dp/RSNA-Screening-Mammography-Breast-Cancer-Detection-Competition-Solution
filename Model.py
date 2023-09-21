@@ -14,13 +14,6 @@ class Model(nn.Module):
         drop_rate=cfg.drop_rate,
         drop_path_rate=cfg.drop_path_rate,
         )
-        if cfg.weights is not None:
-            self.model.load_state_dict(
-                torch.load(cfg.weights)[
-                    "model"
-                ]
-            )
-            print(f"weights from: {cfg.weights} are loaded.")
         
         if cfg.in_channels != 3:
             self.model.conv_stem = nn.Conv2d(

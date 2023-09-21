@@ -8,6 +8,15 @@ from utils import *
 from torch.utils.data import DataLoader, Dataset
 import torch
 import random
+from monai.transforms import (
+    Compose,
+    LoadImaged,
+    EnsureChannelFirstd,
+    RepeatChanneld,
+    Transposed,
+    Resized,
+    Lambdad
+)
 
 class CustomDataset(Dataset):
     def __init__(
@@ -21,6 +30,12 @@ class CustomDataset(Dataset):
         self.df = df.reset_index(drop=True)
         self.epoch_len = self.df.shape[0]
         self.Train = Train
+        self.aug = Compose([
+            LoadImaged(keys="image", image_only=True),
+            EnsureChannelFirstd(keys="image"),
+            RepeatChanneld(keys="image", repeats=3),
+            Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
+        ])
 
     def __getitem__(self, idx):
         sample = self.df.iloc[idx]
@@ -38,11 +53,7 @@ class CustomDataset(Dataset):
             "site": np.array(sample.site_id, dtype=np.int8),
             "view": np.array(sample['view'], dtype=np.int8)  
         }
-        
-        data['image'] = cv2.imread(data['image'])
-        data['image'] = cv2.resize(data['image'], 
-                                   (cfg.img_size[0], cfg.img_size[1]), 
-                                   interpolation = cv2.INTER_LINEAR)
+        data = self.aug(data)
         
         if (cfg.Trans is not None and self.Train):
             data["image"] = cfg.Trans(image=data['image'])['image']
@@ -53,12 +64,10 @@ class CustomDataset(Dataset):
             sample = self.df.iloc[np.random.choice(mask.index)]
             data['cancer'] = np.expand_dims(np.array(sample.cancer, dtype=np.int8), axis=0)
             data['invasive'] = np.expand_dims(np.array(sample.invasive, dtype=np.int8), axis=0)
-            image = cv2.imread(os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"))
-            image = cv2.resize(image, 
-                               (cfg.img_size[0], cfg.img_size[1]), 
-                               interpolation = cv2.INTER_LINEAR)
+            image_data = {"image": os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png")}
+            image_data = self.aug(image_data)
             if (cfg.Trans is not None and self.Train):
-                image = cfg.Trans(image=image)['image']
+                image = cfg.Trans(image=image_data['image'])['image']
             data['image'] += (image.transpose(2,1,0) / 255)
             data['image'] /= 2
 

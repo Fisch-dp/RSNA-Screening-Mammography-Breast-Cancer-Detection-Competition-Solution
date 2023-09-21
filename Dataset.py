@@ -34,7 +34,9 @@ class CustomDataset(Dataset):
             LoadImaged(keys="image", image_only=True),
             EnsureChannelFirstd(keys="image"),
             RepeatChanneld(keys="image", repeats=3),
+            Transposed(keys="image", indices=(0, 2, 1)),
             Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
+            Lambdad(keys="image", func=lambda x: x / 255.0),
         ])
 
     def __getitem__(self, idx):
@@ -53,11 +55,13 @@ class CustomDataset(Dataset):
             "site": np.array(sample.site_id, dtype=np.int8),
             "view": np.array(sample['view'], dtype=np.int8)  
         }
-        data = self.aug(data)
-        
+        print(data['image'].shape)
         if (cfg.Trans is not None and self.Train):
-            data["image"] = cfg.Trans(image=data['image'])['image']
-        data['image'] = data['image'].transpose(2,1,0) / 255
+            data['image'] = data['image'].permute(1,2,0) * 255
+            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
+            Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
+            data['image'] = Trans2(image=data['image'])['image']
+            data['image'] = data['image'].to(torch.float32) / 255
         
         if sample.difficult_negative_case == 1 and sample.biopsy == 1 and self.Train and random.random() < cfg.invert_difficult:
             mask = self.df.query(f'cancer == 1 & implant == {sample.implant} & site_id == {sample.site_id} & view == {sample["view"]}')
@@ -67,8 +71,12 @@ class CustomDataset(Dataset):
             image_data = {"image": os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png")}
             image_data = self.aug(image_data)
             if (cfg.Trans is not None and self.Train):
-                image = cfg.Trans(image=image_data['image'])['image']
-            data['image'] += (image.transpose(2,1,0) / 255)
+                image_data['image'] = image_data['image'].permute(1,2,0) * 255
+                image_data["image"] = cfg.Trans(image=np.array(image_data['image'].to(torch.uint8)))['image']
+                Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
+                image_data['image'] = Trans2(image=image_data['image'])['image']
+                image_data['image'] = image_data['image'].to(torch.float32) / 255
+            data['image'] += image_data['image']
             data['image'] /= 2
 
         return data

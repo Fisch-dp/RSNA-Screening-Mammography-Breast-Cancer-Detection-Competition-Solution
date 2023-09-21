@@ -55,6 +55,7 @@ class CustomDataset(Dataset):
             "site": np.array(sample.site_id, dtype=np.int8),
             "view": np.array(sample['view'], dtype=np.int8)  
         }
+        data = self.aug(data)
 
         if (cfg.Trans is not None and self.Train):
             data['image'] = data['image'].permute(1,2,0) * 255

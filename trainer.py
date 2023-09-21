@@ -218,6 +218,7 @@ class trainer:
         tr_it = iter(dataloader)
 
         out_dic = {f'{i}': [] for i in self.out_classes}
+        label_dic = {f'{i}': [] for i in self.out_classes}
         all_image_ids = []
         
         for i, _ in enumerate(progress_bar):
@@ -225,6 +226,7 @@ class trainer:
                 if i == self.cfg.test_iter: break
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
+            labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
             aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
             all_image_ids.extend(batch["image_id"])
 
@@ -234,13 +236,14 @@ class trainer:
                 
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-        
+                label_dic[self.out_classes[i]].extend(torch.sigmoid(labels_list[i]).detach().cpu().numpy()[:,0])
+                
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:
             df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
-        
+            print(self.out_classes[i], self.df[self.out_classes[i]] - label_dic[self.out_classes[i]])
         return df
 
     def run_eval(self, model, epoch, train="Val"):

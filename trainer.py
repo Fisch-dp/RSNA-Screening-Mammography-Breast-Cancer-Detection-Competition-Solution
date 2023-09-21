@@ -224,7 +224,8 @@ class trainer:
             if self.cfg.test_iter is not None:
                 if i == self.cfg.test_iter: break
             batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
+            print(len(batch["image"]))
+            inputs = troch.stack(batch["image"]).float().to(self.cfg.device)
             aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
             all_image_ids.extend(batch["image_id"])
 

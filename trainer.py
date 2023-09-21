@@ -38,13 +38,13 @@ class trainer:
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
         
-        df["prediction_id"] = df.patient_id.apply(str) + "_" + df.laterality
-        df = pd.concat([df[df["view"]=="MLO"] , df[df["view"]=="CC"]])
+        self.df["prediction_id"] = self.df.patient_id.apply(str) + "_" + self.df.laterality
+        self.df = pd.concat([self.df[self.df["view"]=="MLO"] , self.df[self.df["view"]=="CC"]])
 
-        df['site_id'] -= 1
-        df['view'] = df['view'].map({'CC': 0, 'MLO': 1})
-        df['age'].fillna(df['age'].mean(), inplace=True)
-        df['machine_id'] = df['machine_id'].map({machine_id: idx for idx, machine_id in enumerate(sorted(df['machine_id'].unique()))})
+        self.df['site_id'] -= 1
+        self.df['view'] = self.df['view'].map({'CC': 0, 'MLO': 1})
+        self.df['age'].fillna(self.df['age'].mean(), inplace=True)
+        self.df['machine_id'] = self.df['machine_id'].map({machine_id: idx for idx, machine_id in enumerate(sorted(self.df['machine_id'].unique()))})
 
         self.fold = fold
 

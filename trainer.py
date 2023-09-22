@@ -161,8 +161,9 @@ class trainer:
                     loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                    labels_list[labels_list == 0.5] *= 2
-                    label_dic[self.out_classes[i]].extend(labels_list[i].detach().cpu().numpy()[:,0].astype(np.int8))
+                    temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+                    temp_labels[temp_labels == 0.5] *= 2
+                    label_dic[self.out_classes[i]].extend(temp_labels)
 
             self.scaler.scale(self.loss_calculation(loss)).backward()
             if self.grad_clip is not None:

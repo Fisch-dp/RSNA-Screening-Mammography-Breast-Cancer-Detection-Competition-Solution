@@ -67,8 +67,8 @@ class CustomDataset(Dataset):
         if sample.difficult_negative_case == 1 and sample.biopsy == 1 and self.Train and random.random() < cfg.invert_difficult:
             mask = self.df.query(f'cancer == 1 & implant == {sample.implant} & site_id == {sample.site_id} & view == {sample["view"]}')
             sample = self.df.iloc[np.random.choice(mask.index)]
-            data['cancer'] = (data['cancer'] + np.expand_dims(np.array(sample.cancer, dtype=np.int8), axis=0)) / 2
-            data['invasive'] = (data['invasive'] + np.expand_dims(np.array(sample.invasive, dtype=np.int8), axis=0)) / 2
+            data['cancer'] = (data['cancer'].astype(np.float) + np.expand_dims(np.array(sample.cancer, dtype=np.float), axis=0)) / 2
+            data['invasive'] = (data['invasive'].astype(np.float) + np.expand_dims(np.array(sample.invasive, dtype=np.float), axis=0)) / 2
             image_data = self.aug({"image": os.path.join(self.cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png")})
             if (cfg.Trans is not None and self.Train):
                 image_data['image'] = image_data['image'].permute(1,2,0) * 255

@@ -51,6 +51,7 @@ cfg.num_folds = 4
 cfg.seed = 42
 cfg.df_y = "cancer"
 cfg.invert_difficult = 0.5#larger -> more inverts
+cfg.valueForInvert = 1#invert difficult negative cases and biopsy == 1 with this value
 
 
 # model

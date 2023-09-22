@@ -162,7 +162,7 @@ class trainer:
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                     labels_list[labels_list == 0.5] = 1.0
-                    label_dic[self.out_classes[i]].extend(labels_list[i].detach().cpu().numpy()[:,0])
+                    label_dic[self.out_classes[i]].extend(labels_list[i].detach().cpu().numpy()[:,0].astype(np.int8))
 
             self.scaler.scale(self.loss_calculation(loss)).backward()
             if self.grad_clip is not None:

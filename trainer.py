@@ -162,7 +162,7 @@ class trainer:
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                     temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-                    temp_labels[temp_labels == 0.5] *= 2
+                    temp_labels[temp_labels == 0.5] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
                     label_dic[self.out_classes[i]].extend(temp_labels)
 
             self.scaler.scale(self.loss_calculation(loss)).backward()

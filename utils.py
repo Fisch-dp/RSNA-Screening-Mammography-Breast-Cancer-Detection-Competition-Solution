@@ -134,5 +134,5 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             axes[i,j].legend()
             axes[i,j].set_xlabel("Output Probabilities")
             axes[i,j].set_ylabel("Distribution of samples")
-            axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
+            axes[i,j].set_title(f"{df_names[j]} {cls.capitalize()}")
     plt.show()

@@ -64,8 +64,8 @@ class CustomDataset(Dataset):
             data['image'] = Trans2(image=data['image'])['image']
             data['image'] = data['image'].to(torch.float32) / 255
         
-        if sample.difficult_negative_case == 1 and self.Train and random.random() < cfg.invert_difficult:
-            mask = self.df.query(f'cancer == 1 & implant == {sample.implant} & site_id == {sample.site_id} & view == {sample["view"]}')
+        if sample.biopsy ==1 and self.Train and random.random() < cfg.invert_difficult:
+            mask = self.df.query(f'cancer == 1')
             sample = self.df.iloc[np.random.choice(mask.index)]
             data['cancer'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
             data['invasive'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
@@ -76,7 +76,7 @@ class CustomDataset(Dataset):
                 Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
                 image_data['image'] = Trans2(image=image_data['image'])['image']
                 image_data['image'] = image_data['image'].to(torch.float32) / 255
-            data['image'] = (data['image'] + image_data['image']) / 2
+            data['image'] = data['image'] * (1 - cfg.posMixStrength) + image_data['image'] * cfg.posMixStrength
 
         return data
 

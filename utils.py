@@ -121,8 +121,8 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     return df_out
 
 def get_probability_hist(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(2, 4, figsize=(10,10))
-    plt.subplots_adjust(hspace=0.2)
+    fig, axes = plt.subplots(2, 4, figsize=(25,25))
+    plt.subplots_adjust(hspace=0.2, wspace=0.2)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
             df[f"{cfg.out_classes[j]}_outputs"] 
@@ -139,6 +139,7 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             k += len(cfg.out_classes)
             df[f"{cfg.out_classes[0]}_outputs"]
             df = df[df["site_id"] == site]
+            
             class0 = df[df[f"{cls}"] == 0][f"{cfg.out_classes[0]}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cfg.out_classes[0]}_outputs"].tolist() 
 
@@ -147,5 +148,5 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             axes[i,k].legend()
             axes[i,k].set_xlabel("Output Probabilities")
             axes[i,k].set_ylabel("Distribution of samples")
-            axes[i,k].set_title(f"{df_names[i]} {cfg.out_classes[0].capitalize()}")
+            axes[i,k].set_title(f"Site{site+1} {df_names[i]} {cfg.out_classes[0].capitalize()}")
     plt.show()

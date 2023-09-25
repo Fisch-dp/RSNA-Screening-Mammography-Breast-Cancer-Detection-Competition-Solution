@@ -150,14 +150,15 @@ class trainer:
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[i].float().to(self.cfg.device) for i in self.out_classes]
-            aux_input_list = [batch[i].float().to(self.cfg.device) for i in self.aux_input]
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+            aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
 
             torch.set_grad_enabled(True)
             with autocast():
                 outputs_list = self.model(inputs, *aux_input_list)
                 loss = []
                 for i in range(len(self.out_classes)):
+                    print(len(outputs_list[i]), len(labels_list[i]))
                     loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])

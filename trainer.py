@@ -158,7 +158,6 @@ class trainer:
                 outputs_list = self.model(inputs, *aux_input_list)
                 loss = []
                 for i in range(len(self.out_classes)):
-                    print(len(outputs_list[i]), len(labels_list[i]))
                     loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
                     loss_dic[self.out_classes[i]].append(loss[i].item())
                     out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])

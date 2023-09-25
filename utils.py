@@ -139,13 +139,13 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             k += len(cfg.out_classes)
             df[f"{cfg.out_classes[0]}_outputs"]
             df = df[df["site_id"] == site]
-            class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
-            class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
+            class0 = df[df[f"{cls}"] == 0][f"{cfg.out_classes[0]}_outputs"].tolist()
+            class1 = df[df[f"{cls}"] == 1][f"{cfg.out_classes[0]}_outputs"].tolist() 
 
             axes[i,k].hist(class0, bins=10, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
             axes[i,k].hist(class1, bins=10, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
             axes[i,k].legend()
             axes[i,k].set_xlabel("Output Probabilities")
             axes[i,k].set_ylabel("Distribution of samples")
-            axes[i,k].set_title(f"{df_names[i]} {cls.capitalize()}")
+            axes[i,k].set_title(f"{df_names[i]} {cfg.out_classes[0].capitalize()}")
     plt.show()

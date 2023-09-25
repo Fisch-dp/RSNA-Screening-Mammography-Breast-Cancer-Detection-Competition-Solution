@@ -49,7 +49,7 @@ class CustomDataset(Dataset):
             "cancer": np.expand_dims(np.array(sample.cancer, dtype=np.float32), axis=0),
             "biopsy": np.expand_dims(np.array(sample.biopsy, dtype=np.float32), axis=0),
             "invasive": np.expand_dims(np.array(sample.invasive, dtype=np.float32), axis=0),
-            "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0) / 100,
+            "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0),
             "implant": np.array(sample.implant, dtype=np.int8),
             "machine": np.array(sample.machine_id, dtype=np.int8),
             "site": np.array(sample.site_id, dtype=np.int8),

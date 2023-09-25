@@ -297,7 +297,7 @@ class trainer:
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
-            if site_id is not None
+            if site_id is not None:
                 by = f"site{site_id+1}/"
             else:
                 by = ""

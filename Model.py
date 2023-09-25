@@ -24,15 +24,18 @@ class Model(nn.Module):
                 padding=self.model.conv_stem.padding,
                 bias=self.model.conv_stem.bias,
             )
-        self.classifier = nn.Linear(in_features=1280 + 5, out_features=1, bias=True)
+        self.preAuxClassifier = nn.Linear(in_features=1280 + 5, out_features=1, bias=True)
+        self.classifier = nn.Linear(in_features=1280 + 5 + 1, out_features=1, bias=True)
         self.model.classifier = nn.Identity()
-        self.auxclassifier1 = nn.Linear(in_features=1280 + 5 + 1, out_features=1, bias=True)
+        self.auxclassifier1 = nn.Linear(in_features=1280 + 5 + 1 + 1, out_features=1, bias=True)
 
     def forward(self, x, age, implant, view, site, machine):
         x = self.model(x)
         x = torch.cat([x, implant.view(-1,1), age.view(-1,1), view.view(-1,1), site.view(-1,1), machine.view(-1,1)], axis=1)
+        biopsy = self.classifier(x)
+        x = torch.cat([x, biopsy], axis=1)
         cancer = self.classifier(x)
         x = torch.cat([x, cancer], axis=1)
         invasive = self.auxclassifier1(x)
         
-        return [cancer, invasive]
+        return [cancer, invasive, biopsy]

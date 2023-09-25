@@ -260,6 +260,8 @@ class trainer:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID and cls == self.out_classes[0]: 
                     BINSCORE, LOSS, data_lib = self.print_write(df, epoch, cls, train, by=k)
+                    for s in [0, 1]:
+                        _, _, _ = self.print_write(df, epoch, cls, train, by=k, site_id=s)
                 elif k == self.cfg.evalSaveID and cls != self.out_classes[0]:
                     _, _, lib = self.print_write(df, epoch, cls, train, by=k)
                     data_lib.update(lib)
@@ -268,8 +270,11 @@ class trainer:
 
         return BINSCORE, LOSS, data_lib
     
-    def print_write(self, df, epoch, cls, train="Val", by="prediction_id"):
-        
+    def print_write(self, df, epoch, cls, train="Val", by="prediction_id", site_id=None):
+
+        if site_id is not None:
+            df = df[df["site_id" == site_id]]
+            
         all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
         all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
 
@@ -282,6 +287,8 @@ class trainer:
         
         cls = cls[:3].capitalize() + " "
         print()
+        if site_id is not None:
+            print(f"site{site_id+1}")
         print(f"{cls}{by}")
         print(f"{cls}Pos {train} F1: ", round(score,3), f"{cls}Pos {train} Bin F1: ", round(bin_score,3), f"{cls}{train} Threshold: ", threshold, f"{cls}{train} SelectedP: ", selectedp, f"{cls}{train} AUC: ", round(auc,3))
         print(f"{cls}{train} Loss: ", round(loss,3), f"{cls}Pos {train} Loss: ", round(loss_1,3), f"{cls}Neg {train} Loss: ", round(loss_0,3))
@@ -290,8 +297,11 @@ class trainer:
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
-            by = ""
-            cls = cls[:-1] + "/"
+            if site_id is not None
+                by = f"site{site_id+1}/"
+            else:
+                by = ""
+                cls = cls[:-1] + "/"
 
         if train == "Val":
             self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)

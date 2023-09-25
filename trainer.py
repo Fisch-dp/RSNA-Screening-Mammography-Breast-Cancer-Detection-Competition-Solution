@@ -221,31 +221,36 @@ class trainer:
         tr_it = iter(dataloader)
 
         out_dic = {f'{i}': [] for i in self.out_classes}
-        label_dic = {f'{i}': [] for i in self.out_classes}
         all_image_ids = []
         
         for i, _ in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:
+            if self.cfg.test_iter is not None:#Testing
                 if i == self.cfg.test_iter: break
+
+            #Loading Data
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[cls] for cls in self.out_classes]
             aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
 
+            #Evaluation
             outputs_list = self.model(inputs, *aux_input_list)
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, self.model(torch.flip(inputs, dims=[3, ]), *aux_input_list))]
-                
+
+            #Saving Data
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
                 label_dic[self.out_classes[i]].extend(labels_list[i].numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
-        if self.cfg.test_iter is not None:
-            df = df[df["image_id"].isin(all_image_ids)].reset_index(drop=True)
+        if self.cfg.test_iter is not None:#Testing
+            df = df[df["image_id"].isin(all_image_ids)]
+
+        #Save Data to DF
         for i in range(len(self.out_classes)):
             df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+            
         return df
 
     def run_eval(self, model, epoch, train="Val"):

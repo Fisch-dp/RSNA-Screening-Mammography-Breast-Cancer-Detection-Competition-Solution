@@ -32,7 +32,7 @@ class Model(nn.Module):
     def forward(self, x, age, implant, view, site, machine):
         x = self.model(x)
         x = torch.cat([x, implant.view(-1,1), age.view(-1,1), view.view(-1,1), site.view(-1,1), machine.view(-1,1)], axis=1)
-        biopsy = self.classifier(x)
+        biopsy = self.preAuxClassifier(x)
         x = torch.cat([x, biopsy], axis=1)
         cancer = self.classifier(x)
         x = torch.cat([x, cancer], axis=1)

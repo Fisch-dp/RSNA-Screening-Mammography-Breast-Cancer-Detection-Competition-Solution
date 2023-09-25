@@ -272,7 +272,7 @@ class trainer:
     def print_write(self, df, epoch, cls, train="Val", by="prediction_id", site_id=None):
 
         if site_id is not None:
-            df = df[df["site_id" == site_id]]
+            df = df[df["site_id"] == site_id]
             
         all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
         all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)

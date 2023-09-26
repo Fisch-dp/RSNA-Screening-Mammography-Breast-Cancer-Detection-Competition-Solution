@@ -137,8 +137,8 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
         for k, site in enumerate([0,1]):
             k += len(cfg.out_classes)
-            df[f"{cfg.out_classes[0]}_outputs"]
             df = df[df["site_id"] == site]
+            df[f"{cfg.out_classes[0]}_outputs"]
             
             class0 = df[df[f"{cls}"] == 0][f"{cfg.out_classes[0]}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cfg.out_classes[0]}_outputs"].tolist() 

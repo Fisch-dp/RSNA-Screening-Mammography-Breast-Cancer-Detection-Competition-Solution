@@ -45,11 +45,9 @@ class trainer:
         self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-        print("train: ", len(self.train_dataset), " val: ", len(self.val_dataset))
-        print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
         self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None)
-        self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, sampler=torch.utils.data.SequentialSampler(self.val_dataset))
+        print("train: ", len(self.train_df), " val: ", len(self.val_df))
+        print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
         self.model = model.to(cfg.device)
         if cfg.weights is not None:
@@ -74,7 +72,7 @@ class trainer:
                                                             self.optimizer,
                                                             max_lr=cfg.lr,
                                                             epochs=cfg.epochs,
-                                                            steps_per_epoch=int(len(self.train_dataset) / cfg.batch_size),
+                                                            steps_per_epoch=int(len(self.train_dataloader) / cfg.batch_size),
                                                             pct_start=0.1,
                                                             anneal_strategy="cos",
                                                             div_factor=cfg.lr_div,
@@ -138,6 +136,7 @@ class trainer:
 
     def run_train(self, epoch):
         self.model.train()
+        torch.set_grad_enabled(True)
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 
@@ -153,8 +152,6 @@ class trainer:
             inputs = batch["image"].float().to(self.cfg.device)
             labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
             aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
-
-            torch.set_grad_enabled(True)
             with autocast():
                 outputs_list = self.model(inputs, *aux_input_list)
                 loss = []
@@ -181,10 +178,62 @@ class trainer:
 
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for i in self.out_classes: 
-            table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i))
+            metrics = self.train_metrics(label_dic[i], out_dic[i], epoch, cls=i)
+            self.train_write(metrics[1:], cls=i, epoch=epoch)
+            table.add_row(metrics)
         print(table.get_string())
     
-    def train_print(self, all_labels, all_outputs, epoch, cls):
+    def run_train(self, epoch):
+        self.model.train()
+        torch.set_grad_enabled(True)
+
+        progress_bar = tqdm(range(len(self.train_dataloader)))
+        tr_it = iter(self.train_dataloader)
+
+        label_dic = {f'{i}': [] for i in self.out_classes}
+        out_dic = {f'{i}': [] for i in self.out_classes}
+        loss_dic = {f'{i}': [] for i in self.out_classes}
+            
+        for i,itr in enumerate(progress_bar):
+            if self.cfg.test_iter is not None:
+                if i == self.cfg.test_iter: break
+            self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
+            batch = next(tr_it)
+            inputs = batch["image"].float().to(self.cfg.device)
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+            aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
+            with autocast():
+                outputs_list = self.model(inputs, *aux_input_list)
+                loss = []
+                for i in range(len(self.out_classes)):
+                    loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
+                    loss_dic[self.out_classes[i]].append(loss[i].item())
+                    out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                    temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+                    temp_labels[temp_labels == 0.5] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
+                    label_dic[self.out_classes[i]].extend(temp_labels)
+
+            self.scaler.scale(self.loss_calculation(loss)).backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            self.optimizer.zero_grad()
+            self.scheduler.step()
+            
+            out_print = ""
+            for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
+            out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
+            progress_bar.set_description(out_print)
+
+        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
+        for i in self.out_classes: 
+            metrics = self.train_metrics(label_dic[i], out_dic[i], epoch, cls=i)
+            self.train_write(metrics[1:], cls=i, epoch=epoch)
+            table.add_row(metrics)
+        print(table.get_string())
+
+    def train_metrics(self, all_labels, all_outputs, epoch, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
 
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -204,6 +253,16 @@ class trainer:
 
         return [f"{cls[:-1]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
 
+    def train_write(self, metrics, cls, epoch):
+        cls = cls[:3].capitalize() + "/"
+        self.writer.add_scalar(f"{cls}Pos Train F1", metrics[0], epoch)
+        self.writer.add_scalar(f"{cls}Train AUC", metrics[1], epoch)
+        self.writer.add_scalar(f"{cls}Train Loss", metrics[2], epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Loss", metrics[3], epoch)
+        self.writer.add_scalar(f"{cls}Neg Trian Loss", metrics[4], epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Recall", metrics[5], epoch)
+        self.writer.add_scalar(f"{cls}Pos Train Precision", metrics[6], epoch)
+        
     def predict(self, train="Val"):
         self.model.eval()
         torch.set_grad_enabled(False)
@@ -252,29 +311,28 @@ class trainer:
             
         return df
 
-    def run_eval(self, model, epoch, train="Val"):
+    def run_eval(self, epoch, train="Val"):
         df = self.predict(train)
         table = PrettyTable(["Method", "F1", "Bin F1", "Thres", "P", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision"])
         for cls in self.out_classes:
             for k in self.cfg.evaluation_by:
-                if k == self.cfg.evalSaveID and cls == self.out_classes[0]: 
-                    BINSCORE, LOSS, data_lib, output = self.print_write(df, epoch, cls, train, by=k)
-                    table.add_row(output)
-                    for s in [0, 1]:
-                        _, _, _, output = self.print_write(df, epoch, cls, train, by=k, site_id=s)
-                        table.add_row(output)
-                elif k == self.cfg.evalSaveID and cls != self.out_classes[0]:
-                    _, _, lib, output = self.print_write(df, epoch, cls, train, by=k)
-                    data_lib.update(lib)
-                    table.add_row(output)
-                elif k != self.cfg.evalSaveID and cls == self.out_classes[0]:
-                    _, _, _, output = self.print_write(df, epoch, cls, train, by=k)
-                    table.add_row(output)
+                if k == self.cfg.evalSaveID:
+                    if cls == self.out_classes[0]: 
+                        BINSCORE, LOSS, data_lib, table = self.print_write(df, epoch, cls, table, train, by=k)
+                        for s in [0, 1]:
+                            _, _, _, table = self.print_write(df, epoch, cls, table, train, by=k, site_id=s)
+                    elif cls != self.out_classes[0]:
+                        _, _, lib, table = self.print_write(df, epoch, cls, table, train, by=k)
+                        data_lib.update(lib)
+                else:
+                    if cls == self.out_classes[0]:
+                        _, _, _, table = self.print_write(df, epoch, cls, table, train, by=k)
         print(table)
         return BINSCORE, LOSS, data_lib
     
-    def print_write(self, df, epoch, cls, train="Val", by="prediction_id", site_id=None):
-
+    def print_write(self, df, epoch, cls, table, train="Val", by="prediction_id", site_id=None):
+        Save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
+        
         if site_id is not None:
             df = df[df["site_id"] == site_id]
             
@@ -292,7 +350,8 @@ class trainer:
         method = f"{cls}{train} by {by}"
         if site_id is not None:
             method = f"site{site_id+1} " + method
-        output = [method, f"{score:.5f}", f"{bin_score:.5f}", f"{threshold:.5f}", f"{selectedp:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}", f"{bin_recall:.5f}", f"{bin_precision:.5f}"]
+        metrics = [method, f"{score:.5f}", f"{bin_score:.5f}", f"{threshold:.5f}", f"{selectedp:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}", f"{bin_recall:.5f}", f"{bin_precision:.5f}"]
+        table.add_row(metrics)
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
@@ -303,33 +362,15 @@ class trainer:
                 cls = cls[:-1] + "/"
 
         if train == "Val":
-            self.writer.add_scalar(f"{by}{cls}Pos {train} F1", score, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos {train} Bin F1", bin_score, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos {train} Recall", recall, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos {train} Precision", precision, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Recall", bin_recall, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos Bin {train} Precision", bin_precision, epoch)
-            self.writer.add_scalar(f"{by}{cls}Pos {train} Loss", loss_1, epoch)
-            self.writer.add_scalar(f"{by}{cls}Neg {train} Loss", loss_0, epoch)
-            self.writer.add_scalar(f"{by}{cls}{train} Loss", loss, epoch)
-            self.writer.add_scalar(f"{by}{cls}{train} AUC", auc, epoch)
-
-        cls = cls[:-1]
-        data_lib = {
-            f"Result/{cls}Pos {train} F1":score,
-            f"Result/{cls}Pos {train} Bin F1":bin_score,
-            f"Result/{cls}{train} Threshold":threshold,
-            f"Result/{cls}{train} SelectedP":selectedp,
-            f"Result/{cls}Pos {train} Recall":recall,
-            f"Result/{cls}Pos {train} Precision":precision,
-            f"Result/{cls}Pos Bin {train} Recall":bin_recall,
-            f"Result/{cls}Pos Bin {train} Precision":bin_precision,
-            f"Result/{cls}Pos {train} Loss":loss_1,
-            f"Result/{cls}Neg {train} Loss":loss_0,
-            f"Result/{cls}{train} Loss":loss,
-            f"Result/{cls}{train} AUC":auc,
-                }
-        return bin_score, loss, data_lib, output
+            self.eval_write(metrics[1:], cls, epoch, by, save_list=Save_list)
+        data_lib = {}
+        for i in range(len(Save_list)):
+            data_lib[f"Result/{cls[:-1]} {train} {Save_list[i]}"] = metrics[i]
+        return bin_score, loss, data_lib, table
+    
+    def eval_write(self, metrics, cls, epoch, by, save_list, train="Val"):
+        for i in range(len(save_list[:-2])):
+            self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
 
     def optimize(self, df, all_labels, cls, by="prediction_id"):
         bin_score = -0.01
@@ -406,7 +447,7 @@ class trainer:
         for epoch in range(self.cfg.epochs):
             print("EPOCH:", epoch)
             self.run_train(epoch)
-            score, loss, val_metric = self.run_eval(self.model, epoch, train="Val")
+            score, loss, val_metric = self.run_eval(epoch, train="Val")
             self.saving_best(score, loss, val_metric, epoch)
 
         _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Train")

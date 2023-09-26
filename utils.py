@@ -29,15 +29,37 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
+class MultiImageBatchSampler(torch.utils.data.Sampler):
+    def __init__(self, df, batch_size):
+        self.batch_size = batch_size
+        self.df = df
 
-def get_train_dataloader(train_dataset, cfg, sampler=None):
+    def __iter__(self):
+        batch = []
+        for id in self.df['prediction_id'].unique():
+            item = list(self.df[self.df['prediction_id'] == id].index)
+            if len(item) + len(batch) >= self.batch_size:
+                yield batch
+                batch = []
+                batch.extend(item)
+            else:
+                batch.extend(item)
+        if len(batch) > 0:
+            yield batch
+
+    def __len__(self):
+        return len(self.df)
+
+
+def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
     shu = True
-    if sampler is not None: 
+    if sampler is not None or batch_sampler is not None: 
         shu = False
 
     train_dataloader = DataLoader(
         train_dataset,
         sampler=sampler,
+        batch_sampler=batch_sampler,
         shuffle=shu,
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,

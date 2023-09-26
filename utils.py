@@ -149,7 +149,7 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
     plt.show()
     
 def get_corr_matrix(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(len(df_list), 3, figsize=(50,25))
+    fig, axes = plt.subplots(len(df_list), 3, figsize=(30, 15))
     plt.subplots_adjust(hspace=0.2, wspace=0.3)
     for i, df in enumerate(df_list):
         sns.heatmap(df.corr(), ax=axes[i,0])

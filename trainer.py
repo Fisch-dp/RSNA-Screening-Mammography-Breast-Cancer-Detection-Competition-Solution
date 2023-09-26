@@ -182,6 +182,7 @@ class trainer:
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for i in self.out_classes: 
             table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i))
+        print(table)
         return table
     
     def train_print(self, all_labels, all_outputs, epoch, cls):
@@ -202,7 +203,7 @@ class trainer:
         self.writer.add_scalar(f"{cls}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{cls}Train AUC", auc, epoch)
 
-        return [f"{cls[:-1]} Train", score, auc, loss, loss_1, loss_0, recall, precision]
+        return [f"{cls[:-1]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
 
     def predict(self, train="Val"):
         self.model.eval()

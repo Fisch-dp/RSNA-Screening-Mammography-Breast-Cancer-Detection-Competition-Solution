@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedGroupKFold
 from config import *
 import warnings
+import seaborn as sns
 
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
@@ -145,4 +146,16 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             axes[i,k].set_xlabel("Output Probabilities")
             axes[i,k].set_ylabel("Distribution of samples")
             axes[i,k].set_title(f"Site{site+1} {df_names[i]} {cfg.out_classes[0].capitalize()}")
+    plt.show()
+    
+def get_corr_matrix(df_list, df_names=["Train", "Val"]):
+    fig, axes = plt.subplots(2, 3, figsize=(50,25))
+    plt.subplots_adjust(hspace=0.2, wspace=0.3)
+    for i, df in enumerate(df_list):
+        sns.heatmap(df.corr(), ax=axes[i,0])
+        axes[i,0].set_title(f"{df_names[i]}")
+        for j in [0,1]:
+            sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
+            axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
+    
     plt.show()

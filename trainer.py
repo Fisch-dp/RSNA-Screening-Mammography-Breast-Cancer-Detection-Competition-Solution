@@ -7,6 +7,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
+from prettytable import PrettyTable
 
 from utils import *
 from config import *
@@ -177,10 +178,12 @@ class trainer:
             for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
-        
-        for i in self.out_classes: self.train_print(label_dic[i], out_dic[i], epoch, cls=i)
+
+        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
+        for i in self.out_classes: 
+            table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i, table=table))
     
-    def train_print(self, all_labels, all_outputs, epoch, cls):
+    def train_print(self, all_labels, all_outputs, epoch, cls, table):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
 
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -189,13 +192,7 @@ class trainer:
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
 
-        cls = cls[:3].capitalize() + " "
-            
-        print(f"{cls}Pos Train F1: ", round(score,3), f"{cls}Train AUC: ", round(auc,3))
-        print(f"{cls}Train Loss: ", round(loss,3), f"{cls}Pos Train Loss: ", round(loss_1,3), f"{cls}Neg Train Loss: ", round(loss_0,3))
-        print(f"{cls}Pos Train Recall ", round(recall,3), f"{cls}Pos Train Precision ", round(precision,3))
-
-        cls = cls[:-1] + "/"
+        cls = cls[:3].capitalize() + "/"
         self.writer.add_scalar(f"{cls}Pos Train F1", score, epoch)
         self.writer.add_scalar(f"{cls}Pos Train Recall", recall, epoch)
         self.writer.add_scalar(f"{cls}Pos Train Precision", precision, epoch)
@@ -203,6 +200,8 @@ class trainer:
         self.writer.add_scalar(f"{cls}Neg Trian Loss", loss_0, epoch)
         self.writer.add_scalar(f"{cls}Train Loss", loss, epoch)
         self.writer.add_scalar(f"{cls}Train AUC", auc, epoch)
+
+        return [f"{cls[:-1]} Train", score, auc, loss, loss_1, loss_0, recall, precision]
 
     def predict(self, train="Val"):
         self.model.eval()

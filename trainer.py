@@ -181,10 +181,10 @@ class trainer:
 
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for i in self.out_classes: 
-            table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i, table=table))
-        print(table)
+            table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i))
+        return table
     
-    def train_print(self, all_labels, all_outputs, epoch, cls, table):
+    def train_print(self, all_labels, all_outputs, epoch, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
 
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")

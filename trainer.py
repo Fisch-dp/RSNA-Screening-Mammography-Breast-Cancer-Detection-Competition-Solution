@@ -254,18 +254,22 @@ class trainer:
 
     def run_eval(self, model, epoch, train="Val"):
         df = self.predict(train)
-        
+        table = PrettyTable(["Method", "F1", "Bin F1", "Thres", "P", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision"])
         for cls in self.out_classes:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID and cls == self.out_classes[0]: 
-                    BINSCORE, LOSS, data_lib = self.print_write(df, epoch, cls, train, by=k)
+                    BINSCORE, LOSS, data_lib, output = self.print_write(df, epoch, cls, train, by=k)
+                    table.add_row(output)
                     for s in [0, 1]:
-                        _, _, _ = self.print_write(df, epoch, cls, train, by=k, site_id=s)
+                        _, _, _, output = self.print_write(df, epoch, cls, train, by=k, site_id=s)
+                        table.add_row(output)
                 elif k == self.cfg.evalSaveID and cls != self.out_classes[0]:
-                    _, _, lib = self.print_write(df, epoch, cls, train, by=k)
+                    _, _, lib, output = self.print_write(df, epoch, cls, train, by=k)
                     data_lib.update(lib)
+                    table.add_row(output)
                 elif k != self.cfg.evalSaveID and cls == self.out_classes[0]:
-                    _, _, _ = self.print_write(df, epoch, cls, train, by=k)
+                    _, _, _, output = self.print_write(df, epoch, cls, train, by=k)
+                    table.add_row(output)
 
         return BINSCORE, LOSS, data_lib
     
@@ -285,14 +289,10 @@ class trainer:
         auc = roc_auc_score(all_labels, all_outputs)
         
         cls = cls[:3].capitalize() + " "
-        print()
+        method = f"{cls} {train} by {by}"
         if site_id is not None:
-            print(f"site{site_id+1}")
-        print(f"{cls}{by}")
-        print(f"{cls}Pos {train} F1: ", round(score,3), f"{cls}Pos {train} Bin F1: ", round(bin_score,3), f"{cls}{train} Threshold: ", threshold, f"{cls}{train} SelectedP: ", selectedp, f"{cls}{train} AUC: ", round(auc,3))
-        print(f"{cls}{train} Loss: ", round(loss,3), f"{cls}Pos {train} Loss: ", round(loss_1,3), f"{cls}Neg {train} Loss: ", round(loss_0,3))
-        print(f"{cls}Pos {train} Recall ", round(recall,3), f"{cls}Pos {train} Precision ", round(precision,3))
-        print(f"{cls}Pos Bin {train} Recall ", round(bin_recall,3), f"{cls}Pos Bin {train} Precision ", round(bin_precision,3))
+            method = f"site{site_id+1} " + method
+        output = [method, f"{score:.5f}", f"{bin_score:.5f}", f"{threshold:.5f}", f"{selectedp:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}", f"{bin_recall:.5f}", f"{bin_precision:.5f}"]
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
@@ -329,7 +329,7 @@ class trainer:
             f"Result/{cls}{train} Loss":loss,
             f"Result/{cls}{train} AUC":auc,
                 }
-        return bin_score, loss, data_lib
+        return bin_score, loss, data_lib, output
 
     def optimize(self, df, all_labels, cls, by="prediction_id"):
         bin_score = -0.01

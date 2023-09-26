@@ -122,7 +122,7 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     return df_out
 
 def get_probability_hist(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(2, 4, figsize=(25,25))
+    fig, axes = plt.subplots(len(df_list), 4, figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
@@ -149,7 +149,7 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
     plt.show()
     
 def get_corr_matrix(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(2, 3, figsize=(50,25))
+    fig, axes = plt.subplots(len(df_list), 3, figsize=(50,25))
     plt.subplots_adjust(hspace=0.2, wspace=0.3)
     for i, df in enumerate(df_list):
         sns.heatmap(df.corr(), ax=axes[i,0])
@@ -157,5 +157,4 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
         for j in [0,1]:
             sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
-    
     plt.show()

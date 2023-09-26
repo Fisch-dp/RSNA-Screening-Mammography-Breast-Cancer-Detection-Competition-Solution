@@ -45,7 +45,7 @@ class trainer:
         self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-        self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None)
+        self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
         print("train: ", len(self.train_df), " val: ", len(self.val_df))
         print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 

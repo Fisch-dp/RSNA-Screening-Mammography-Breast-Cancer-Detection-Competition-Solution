@@ -270,7 +270,7 @@ class trainer:
                 elif k != self.cfg.evalSaveID and cls == self.out_classes[0]:
                     _, _, _, output = self.print_write(df, epoch, cls, train, by=k)
                     table.add_row(output)
-
+        print(table)
         return BINSCORE, LOSS, data_lib
     
     def print_write(self, df, epoch, cls, train="Val", by="prediction_id", site_id=None):

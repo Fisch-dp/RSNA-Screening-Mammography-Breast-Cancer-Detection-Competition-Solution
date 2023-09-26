@@ -289,7 +289,7 @@ class trainer:
         auc = roc_auc_score(all_labels, all_outputs)
         
         cls = cls[:3].capitalize() + " "
-        method = f"{cls} {train} by {by}"
+        method = f"{cls}{train} by {by}"
         if site_id is not None:
             method = f"site{site_id+1} " + method
         output = [method, f"{score:.5f}", f"{bin_score:.5f}", f"{threshold:.5f}", f"{selectedp:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}", f"{bin_recall:.5f}", f"{bin_precision:.5f}"]

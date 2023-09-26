@@ -182,8 +182,7 @@ class trainer:
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for i in self.out_classes: 
             table.add_row(self.train_print(label_dic[i], out_dic[i], epoch, cls=i))
-        print(table)
-        return table
+        print(table.get_string())
     
     def train_print(self, all_labels, all_outputs, epoch, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)

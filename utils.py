@@ -125,7 +125,6 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
-            df[f"{cfg.out_classes[j]}_outputs"] 
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
 
@@ -137,11 +136,8 @@ def get_probability_hist(df_list, df_names=["Train", "Val"]):
             axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
         for k, site in enumerate([0,1]):
             k += len(cfg.out_classes)
-            df = df[df["site_id"] == site]
-            df[f"{cfg.out_classes[0]}_outputs"]
-            
-            class0 = df[df[f"{cls}"] == 0][f"{cfg.out_classes[0]}_outputs"].tolist()
-            class1 = df[df[f"{cls}"] == 1][f"{cfg.out_classes[0]}_outputs"].tolist() 
+            class0 = df[df["site_id"] == site][df[f"{cls}"] == 0][f"{cfg.out_classes[0]}_outputs"].tolist()
+            class1 = df[df["site_id"] == site][df[f"{cls}"] == 1][f"{cfg.out_classes[0]}_outputs"].tolist() 
 
             axes[i,k].hist(class0, bins=10, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
             axes[i,k].hist(class1, bins=10, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))

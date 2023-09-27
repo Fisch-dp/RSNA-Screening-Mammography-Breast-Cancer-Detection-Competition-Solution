@@ -232,7 +232,7 @@ class trainer:
         return [f"{cls[:3]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
 
     def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):
-        metrics = self.train_metrics(all_labels, all_outputs, epoch, cls, save_list)
+        metrics = self.train_metrics(all_labels, all_outputs, cls)
         table.add_row(metrics)
 
         cls = cls[:3].capitalize() + "/"

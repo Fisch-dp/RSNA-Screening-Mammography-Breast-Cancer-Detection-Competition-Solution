@@ -59,7 +59,8 @@ def triplet_loss(y_pred, prediction_id_list, margin=0):
             loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
             print(loss[0], loss[1])
             loss[2] += loss[0] - loss[1] #loss[2] = (loss[0] - loss[1], margin).max()
-        return loss[2]
+            
+        return loss[2] / len(prediction_id_list)
 
 
 def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):

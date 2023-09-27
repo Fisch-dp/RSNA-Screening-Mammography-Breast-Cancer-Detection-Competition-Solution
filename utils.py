@@ -50,7 +50,7 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __len__(self):
         return len(self.df)
     
-def triplet_loss(y_pred, prediction_id_list, margin=0.0):
+def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
         margin = torch.tensor(margin).to(cfg.device)
         for prediction_id in prediction_id_list:

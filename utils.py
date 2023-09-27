@@ -48,7 +48,18 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
             yield batch
 
     def __len__(self):
-        return len(self.df)
+        batches = []
+        batch = []
+        for id in self.df['prediction_id'].unique():
+            item = list(self.df[self.df['prediction_id'] == id].index)
+            if len(item) + len(batch) >= self.batch_size:
+                batches.append(batch)
+                batch = []
+                batch.extend(item)
+            else:
+                batch.extend(item)
+
+        return len(batches)
     
 def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
@@ -58,7 +69,6 @@ def triplet_loss(y_pred, prediction_id_list, margin=10.0):
             neg_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element != prediction_id]).to(cfg.device)
             loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
             loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
-            print(loss[0], loss[1])
             loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0.0).to(cfg.device))#only hard triplets
             
         return loss[2] / len(prediction_id_list)

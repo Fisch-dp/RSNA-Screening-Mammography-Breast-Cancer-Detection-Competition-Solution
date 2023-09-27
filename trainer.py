@@ -214,8 +214,8 @@ class trainer:
                 label_dic[self.out_classes[i]].extend(temp_labels) 
 
         tri_loss = triplet_loss(intermediate, prediction_id)
-        out_print += f"Triplet Loss: {tri_loss:.2f}, "
-        self.writer.add_scalar(f"Triplet Loss", tri_loss, iteration)
+        out_print += f"Triplet Loss: {tri_loss.item():.2f}, "
+        self.writer.add_scalar(f"Triplet Loss", tri_loss.item(), iteration)
 
         loss = self.loss_calculation(loss) + tri_loss
         return loss, label_dic, out_dic, loss_dic, out_print

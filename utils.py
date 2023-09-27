@@ -52,12 +52,14 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
     
 def triplet_loss(y_pred, prediction_id_list, margin=0):
         loss =[torch.tensor(0), torch.tensor(0), torch.tensor(0)]# [positive, negative, triplet]
+        for i in loss: i.to(cfg.device)
+        margin = torch.tensor(margin).to(cfg.device)
         for prediction_id in prediction_id_list:
             pos_indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
             neg_indices = [index for index, element in enumerate(prediction_id_list) if element != prediction_id]
             loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
             loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
-            loss[2] += torch.max(loss[0] - loss[1] + torch.tensor(margin).to(cfg.device), torch.tensor(0).to(cfg.device))#only hard triplets
+            loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0).to(cfg.device))#only hard triplets
             
         return loss[2] / len(prediction_id_list)
 

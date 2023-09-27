@@ -172,9 +172,8 @@ class trainer:
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
 
-        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
-        table.float_format = '.3'
-        save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
+        save_list = ["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
+        table = PrettyTable(save_list)
         for i in self.out_classes: 
             table = self.train_write(label_dic[i], out_dic[i], cls, epoch, save_list, table)
             
@@ -234,11 +233,11 @@ class trainer:
 
     def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):
         metrics = self.train_metrics(all_labels, all_outputs, cls)
-        table.add_row(metrics)
-
         cls = cls[:3].capitalize() + "/"
         for i in range(1, len(save_list)):
             self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
+            metrics[i] = round(metrics[i], 3)
+        table.add_row(metrics)
         return table
         
     def predict(self, train="Val"):
@@ -292,7 +291,6 @@ class trainer:
     def run_eval(self, epoch, train="Val"):
         df = self.predict(train)
         table = PrettyTable(["Method", "F1", "Bin F1", "Thres", "P", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision"])
-        table.float_format = '.3'
         for cls in self.out_classes:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID:
@@ -330,7 +328,7 @@ class trainer:
         if site_id is not None:
             method = f"site{site_id+1} " + method
         metrics = [method, score, bin_score, threshold, selectedp, auc, loss, loss_1, loss_0, recall, precision, bin_recall, bin_precision]
-        table.add_row(metrics)
+        
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
@@ -345,6 +343,8 @@ class trainer:
         data_lib = {}
         for i in range(len(Save_list)):
             data_lib[f"Result/{cls[:-1]} {train} {Save_list[i]}"] = metrics[i]
+            metrics[i] = round(metrics[i], 3)
+        table.add_row(metrics)
         return bin_score, loss, data_lib, table
     
     def eval_write(self, metrics, cls, epoch, by, save_list, train="Val"):

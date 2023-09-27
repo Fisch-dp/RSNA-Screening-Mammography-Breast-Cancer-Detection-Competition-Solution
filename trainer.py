@@ -139,6 +139,7 @@ class trainer:
         else: self.hparams.update({"TTA": "False"})
         if self.cfg.Trans is not None: self.hparams.update({"Train_AUG": "True"})
         else: self.hparams.update({"Train_AUG": "False"})
+        self.triplet_loss = []
 
     def run_train(self, epoch):
         self.model.train()
@@ -214,7 +215,7 @@ class trainer:
                 label_dic[self.out_classes[i]].extend(temp_labels) 
 
         triplet_loss = triplet_loss(intermediate, prediction_id)
-        cfg.triplet_loss.append(triplet_loss)
+        self.triplet_loss.append(triplet_loss)
         out_print += f"Triplet Loss: {triplet_loss:.2f}, "
         self.writer.add_scalar(f"Triplet Loss", triplet_loss, iteration)
 

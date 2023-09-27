@@ -236,8 +236,7 @@ class trainer:
         table.add_row(metrics)
 
         cls = cls[:3].capitalize() + "/"
-        for i in range(len(save_list)):
-            print(f"{cls}Train {save_list[i]}", metrics[i])
+        for i in range(1, len(save_list)):
             self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
         return table
         

@@ -48,18 +48,7 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
             yield batch
 
     def __len__(self):
-        batches = []
-        batch = []
-        for id in self.df['prediction_id'].unique():
-            item = list(self.df[self.df['prediction_id'] == id].index)
-            if len(item) + len(batch) >= self.batch_size:
-                batches.append(batch)
-                batch = []
-                batch.extend(item)
-            else:
-                batch.extend(item)
-
-        return len(batches)
+        return len(self.df['prediction_id'].unique())
     
 def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]

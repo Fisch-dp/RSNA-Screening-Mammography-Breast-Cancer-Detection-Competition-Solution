@@ -172,8 +172,8 @@ class trainer:
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
 
-        save_list = ["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
-        table = PrettyTable(save_list)
+        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
+        save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
         for i in self.out_classes: 
             table = self.train_write(label_dic[i], out_dic[i], cls, epoch, save_list, table)
             
@@ -236,8 +236,8 @@ class trainer:
         table.add_row(metrics)
 
         cls = cls[:3].capitalize() + "/"
-        for i in range(1, len(save_list)):
-            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i-1], epoch)
+        for i in range(len(save_list)):
+            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
         return table
         
     def predict(self, train="Val"):

@@ -229,7 +229,7 @@ class trainer:
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
 
-        return [f"{cls[:3]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
+        return [f"{cls[:3]} Train", score, auc, loss, loss_1, loss_0, recall, precision]
 
     def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):
         metrics = self.train_metrics(all_labels, all_outputs, cls)
@@ -237,7 +237,6 @@ class trainer:
 
         cls = cls[:3].capitalize() + "/"
         for i in range(len(save_list)):
-            print(f"{cls}Train {save_list[i]}: {metrics[i]}", metrics[i])
             self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
         return table
         

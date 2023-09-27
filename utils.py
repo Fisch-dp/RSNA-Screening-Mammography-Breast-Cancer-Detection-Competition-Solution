@@ -53,8 +53,8 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
 def triplet_loss(y_pred, prediction_id_list, margin=0):
         loss =[0, 0, 0]# [positive, negative, triplet]
         for prediction_id in prediction_id_list:
-            pos_indices = np.where(prediction_id_list == prediction_id)
-            neg_indices = np.where(prediction_id_list != prediction_id)
+            pos_indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
+            neg_indices = [index for index, element in enumerate(prediction_id_list) if element != prediction_id]
             print(pos_indices, neg_indices)
             loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
             loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()

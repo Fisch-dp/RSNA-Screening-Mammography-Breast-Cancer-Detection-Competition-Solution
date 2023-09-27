@@ -78,7 +78,7 @@ class trainer:
                                                             self.optimizer,
                                                             max_lr=cfg.lr,
                                                             epochs=cfg.epochs,
-                                                            steps_per_epoch=int(len(self.train_dataloader) / cfg.batch_size),
+                                                            steps_per_epoch=int(len(self.train_dataloader)),
                                                             pct_start=0.1,
                                                             anneal_strategy="cos",
                                                             div_factor=cfg.lr_div,

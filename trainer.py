@@ -338,7 +338,7 @@ class trainer:
                 cls = cls[:-1] + "/"
 
         if train == "Val":
-            self.eval_write(metrics[1:-2], cls, epoch, by, save_list=Save_list)
+            self.eval_write(metrics[1:], cls, epoch, by, save_list=Save_list)
         data_lib = {}
         for i in range(len(Save_list)):
             data_lib[f"Result/{cls[:-1]} {train} {Save_list[i]}"] = metrics[i+1]
@@ -347,7 +347,7 @@ class trainer:
         return bin_score, loss, data_lib, table
     
     def eval_write(self, metrics, cls, epoch, by, save_list, train="Val"):
-        for i in range(len(save_list)):
+        for i in range(len(save_list[:-2])):
             self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
 
     def optimize(self, df, all_labels, cls, by="prediction_id"):

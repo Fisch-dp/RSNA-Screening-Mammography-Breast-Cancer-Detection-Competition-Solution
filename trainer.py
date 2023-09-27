@@ -237,7 +237,7 @@ class trainer:
 
         cls = cls[:3].capitalize() + "/"
         for i in range(1, len(save_list)):
-            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
+            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i-1], epoch)
         return table
         
     def predict(self, train="Val"):

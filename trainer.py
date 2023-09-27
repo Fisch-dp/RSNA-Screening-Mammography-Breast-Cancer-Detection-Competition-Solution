@@ -428,7 +428,7 @@ class trainer:
             score, loss, val_metric = self.run_eval(epoch, train="Val")
             self.saving_best(score, loss, val_metric, epoch)
 
-        _, _, train_metric = self.run_eval(self.best_model, epoch=self.best_metric['Result/Stop_Epoch'], train="Train")
+        _, _, train_metric = self.run_eval(epoch=self.best_metric['Result/Stop_Epoch'], train="Train")
 
         self.best_Loss_metric = {f'Loss_{i}': self.best_Loss_metric[i] for i in self.best_Loss_metric}
 

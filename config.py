@@ -67,3 +67,4 @@ cfg.drop_path_rate = 0.2
 cfg.evaluation_by = ["image_id", "prediction_id", "patient_id"]
 cfg.tta = False #True
 cfg.evalSaveID = "prediction_id"
+cfg.triplet_loss = []

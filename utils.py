@@ -49,6 +49,17 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
 
     def __len__(self):
         return len(self.df)
+    
+def triplet_loss(y_pred, prediction_id_list, margin=0):
+        series1 = pd.Series(id)
+        loss =[0, 0, 0]# [positive, negative, triplet]
+        for prediction_id in prediction_id_list:
+            pos_indices = series1[series1 == prediction_id].index
+            neg_indices = series1[series1 != prediction_id].index
+            loss[0] += F.pairwise_distance(y_pred[pos_indices].unsqueeze(1), y_pred[pos_indices].unsqueeze(0), p=2).mean()
+            loss[1] += F.pairwise_distance(y_pred[pos_indices].unsqueeze(1), y_pred[neg_indices].unsqueeze(0), p=2).mean()
+            loss[2] += loss[0] - loss[1] #loss[2] = (loss[0] - loss[1], margin).max()
+        return loss[2]
 
 
 def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):

@@ -27,6 +27,7 @@ class trainer:
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
                  fold = 0,
+                 mode = "single",# "multi"
                  ):
         
         set_seed(cfg.seed)
@@ -40,12 +41,17 @@ class trainer:
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
         self.fold = fold
+        self.mode = mode
 
         self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)
         self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-        self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
+        if self.mode == "multi":
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
+        else: 
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None)
+        
         print("train: ", len(self.train_df), " val: ", len(self.val_df))
         print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
@@ -149,21 +155,12 @@ class trainer:
                 if i == self.cfg.test_iter: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
-            aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
-            with autocast():
-                outputs_list = self.model(inputs, *aux_input_list)
-                loss = []
-                for i in range(len(self.out_classes)):
-                    loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-                    loss_dic[self.out_classes[i]].append(loss[i].item())
-                    out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                    temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-                    temp_labels[temp_labels == 0.5] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-                    label_dic[self.out_classes[i]].extend(temp_labels)
-
-            self.scaler.scale(self.loss_calculation(loss)).backward()
+            if self.mode == "multi":   
+                loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
+            else:   
+                loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
+            
+            self.scaler.scale(loss).backward()
             if self.grad_clip is not None:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
             self.scaler.step(self.optimizer)
@@ -171,69 +168,60 @@ class trainer:
             self.optimizer.zero_grad()
             self.scheduler.step()
             
-            out_print = ""
             for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
 
-        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
+        save_list = ["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
+        table = PrettyTable(save_list)
         for i in self.out_classes: 
-            metrics = self.train_metrics(label_dic[i], out_dic[i], epoch, cls=i)
-            self.train_write(metrics[1:], cls=i, epoch=epoch)
-            table.add_row(metrics)
+            table = self.train_write(label_dic[i], out_dic[i], cls, epoch, save_list, table)
+            
         print(table.get_string())
+
+    def train(self, batch, label_dic, out_dic, loss_dic, out_print):
+        inputs = batch["image"].float().to(self.cfg.device)
+        labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
+        with autocast():
+            outputs_list = self.model(inputs, *aux_input_list)
+            loss = []
+            for i in range(len(self.out_classes)):
+                loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
+                loss_dic[self.out_classes[i]].append(loss[i].item())
+                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+                temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
+                label_dic[self.out_classes[i]].extend(temp_labels) 
+
+        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     
-    def run_train(self, epoch):
-        self.model.train()
-        torch.set_grad_enabled(True)
+    def tripletTrain(self, batch, iteration, label_dic, out_dic, loss_dic, out_print):
+        inputs = batch["image"].float().to(self.cfg.device)
+        labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
+        prediction_id = batch["prediction_id"]
 
-        progress_bar = tqdm(range(len(self.train_dataloader)))
-        tr_it = iter(self.train_dataloader)
+        with autocast():
+            outputs_list, intermediate = self.model(inputs, *aux_input_list)
+            loss = []
+            for i in range(len(self.out_classes)):
+                loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
+                loss_dic[self.out_classes[i]].append(loss[i].item())
+                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+                temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
+                label_dic[self.out_classes[i]].extend(temp_labels) 
 
-        label_dic = {f'{i}': [] for i in self.out_classes}
-        out_dic = {f'{i}': [] for i in self.out_classes}
-        loss_dic = {f'{i}': [] for i in self.out_classes}
-            
-        for i,itr in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:
-                if i == self.cfg.test_iter: break
-            self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
-            batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
-            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
-            aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
-            with autocast():
-                outputs_list = self.model(inputs, *aux_input_list)
-                loss = []
-                for i in range(len(self.out_classes)):
-                    loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-                    loss_dic[self.out_classes[i]].append(loss[i].item())
-                    out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                    temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-                    temp_labels[temp_labels == 0.5] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-                    label_dic[self.out_classes[i]].extend(temp_labels)
+        triplet_loss = triplet_loss(intermediate, prediction_id)
+        cfg.triplet_loss.append(triplet_loss)
+        out_print += f"Triplet Loss: {triplet_loss:.2f}, "
+        self.writer.add_scalar(f"Triplet Loss", triplet_loss, iteration)
 
-            self.scaler.scale(self.loss_calculation(loss)).backward()
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-            self.optimizer.zero_grad()
-            self.scheduler.step()
-            
-            out_print = ""
-            for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
-            out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
-            progress_bar.set_description(out_print)
+        loss = self.loss_calculation(loss) + triplet_loss
+        return loss, label_dic, out_dic, loss_dic, out_print
 
-        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
-        for i in self.out_classes: 
-            metrics = self.train_metrics(label_dic[i], out_dic[i], epoch, cls=i)
-            self.train_write(metrics[1:], cls=i, epoch=epoch)
-            table.add_row(metrics)
-        print(table.get_string())
-
-    def train_metrics(self, all_labels, all_outputs, epoch, cls):
+    def train_metrics(self, all_labels, all_outputs, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
 
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -242,26 +230,16 @@ class trainer:
         loss = float(loss.mean())
         auc = roc_auc_score(all_labels, all_outputs)
 
-        cls = cls[:3].capitalize() + "/"
-        self.writer.add_scalar(f"{cls}Pos Train F1", score, epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Recall", recall, epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Precision", precision, epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Loss", loss_1, epoch)
-        self.writer.add_scalar(f"{cls}Neg Trian Loss", loss_0, epoch)
-        self.writer.add_scalar(f"{cls}Train Loss", loss, epoch)
-        self.writer.add_scalar(f"{cls}Train AUC", auc, epoch)
+        return [f"{cls[:3]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
 
-        return [f"{cls[:-1]} Train", f"{score:.5f}", f"{auc:.5f}", f"{loss:.5f}", f"{loss_1:.5f}", f"{loss_0:.5f}", f"{recall:.5f}", f"{precision:.5f}"]
+    def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):
+        metrics = self.train_metrics(all_labels, all_outputs, epoch, cls, save_list)
+        table.add_row(metrics)
 
-    def train_write(self, metrics, cls, epoch):
         cls = cls[:3].capitalize() + "/"
-        self.writer.add_scalar(f"{cls}Pos Train F1", metrics[0], epoch)
-        self.writer.add_scalar(f"{cls}Train AUC", metrics[1], epoch)
-        self.writer.add_scalar(f"{cls}Train Loss", metrics[2], epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Loss", metrics[3], epoch)
-        self.writer.add_scalar(f"{cls}Neg Trian Loss", metrics[4], epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Recall", metrics[5], epoch)
-        self.writer.add_scalar(f"{cls}Pos Train Precision", metrics[6], epoch)
+        for i in range(1, len(save_list)):
+            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i], epoch)
+        return table
         
     def predict(self, train="Val"):
         self.model.eval()

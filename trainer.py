@@ -173,6 +173,7 @@ class trainer:
             progress_bar.set_description(out_print)
 
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
+        table.float_format = '.3'
         save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
         for i in self.out_classes: 
             table = self.train_write(label_dic[i], out_dic[i], cls, epoch, save_list, table)
@@ -291,6 +292,7 @@ class trainer:
     def run_eval(self, epoch, train="Val"):
         df = self.predict(train)
         table = PrettyTable(["Method", "F1", "Bin F1", "Thres", "P", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision"])
+        table.float_format = '.3'
         for cls in self.out_classes:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID:

@@ -139,14 +139,11 @@ class trainer:
         else: self.hparams.update({"TTA": "False"})
         if self.cfg.Trans is not None: self.hparams.update({"Train_AUG": "True"})
         else: self.hparams.update({"Train_AUG": "False"})
-        self.triplet_loss = []
 
     def run_train(self, epoch):
         self.model.train()
         torch.set_grad_enabled(True)
         progress_bar = tqdm(range(len(self.train_dataloader)))
-        if self.mode == "multi":
-            progress_bar = tqdm(range(len(MultiImageBatchSampler(self.train_df, cfg.batch_size))))
         tr_it = iter(self.train_dataloader)
 
         label_dic = {f'{i}': [] for i in self.out_classes}
@@ -217,7 +214,6 @@ class trainer:
                 label_dic[self.out_classes[i]].extend(temp_labels) 
 
         tri_loss = triplet_loss(intermediate, prediction_id)
-        self.triplet_loss.append(tri_loss)
         out_print += f"Triplet Loss: {tri_loss:.2f}, "
         self.writer.add_scalar(f"Triplet Loss", tri_loss, iteration)
 

@@ -66,17 +66,22 @@ def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
     shu = True
     if sampler is not None or batch_sampler is not None: 
         shu = False
+    bs = cfg.batch_size
+    dl = True
+    if batch_sampler is not None:
+        bs = None
+        dl = False
 
     train_dataloader = DataLoader(
         train_dataset,
         sampler=sampler,
         batch_sampler=batch_sampler,
         shuffle=shu,
-        batch_size=cfg.batch_size,
+        batch_size=bs,
         num_workers=cfg.num_workers,
         pin_memory=False,
         collate_fn=None,
-        drop_last=True,
+        drop_last=dl,
     )
 
     return train_dataloader

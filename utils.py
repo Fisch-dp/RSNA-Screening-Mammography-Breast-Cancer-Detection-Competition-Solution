@@ -69,7 +69,7 @@ def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
     bs = cfg.batch_size
     dl = True
     if batch_sampler is not None:
-        bs = None
+        bs = 1
         dl = False
 
     train_dataloader = DataLoader(

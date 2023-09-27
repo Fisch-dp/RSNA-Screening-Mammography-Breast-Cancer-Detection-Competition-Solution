@@ -214,12 +214,12 @@ class trainer:
                 temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
                 label_dic[self.out_classes[i]].extend(temp_labels) 
 
-        triplet_loss = triplet_loss(intermediate, prediction_id)
+        tri_loss = triplet_loss(intermediate, prediction_id)
         self.triplet_loss.append(triplet_loss)
-        out_print += f"Triplet Loss: {triplet_loss:.2f}, "
-        self.writer.add_scalar(f"Triplet Loss", triplet_loss, iteration)
+        out_print += f"Triplet Loss: {tri_loss:.2f}, "
+        self.writer.add_scalar(f"Triplet Loss", tri_loss, iteration)
 
-        loss = self.loss_calculation(loss) + triplet_loss
+        loss = self.loss_calculation(loss) + tri_loss
         return loss, label_dic, out_dic, loss_dic, out_print
 
     def train_metrics(self, all_labels, all_outputs, cls):

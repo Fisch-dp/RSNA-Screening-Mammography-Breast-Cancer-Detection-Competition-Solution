@@ -8,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 from prettytable import PrettyTable
+from sklearn import metrics
 
 from utils import *
 from config import *
@@ -307,12 +308,7 @@ class trainer:
         print(table)
         return BINSCORE, LOSS, data_lib
     
-    def print_write(self, df, epoch, cls, table, train="Val", by="prediction_id", site_id=None):
-        Save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
-        
-        if site_id is not None:
-            df = df[df["site_id"] == site_id]
-            
+    def eval_metrics(self, df, cls, by="prediction_id"):
         all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
         all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
 
@@ -322,12 +318,17 @@ class trainer:
         loss_0 = float((loss * (1-torch.tensor(all_labels))).mean())
         loss = float(loss.mean())
         auc = float(roc_auc_score(all_labels, all_outputs))
-        
-        cls = cls[:3].capitalize() + " "
-        method = f"{cls}{train} by {by}"
+        return [score, bin_score, auc, loss, loss_1, loss_0, recall, precision, bin_recall, bin_precision, threshold, selectedp]
+
+    def eval_write(self, df, epoch, cls, table, train="Val", by="prediction_id", site_id=None):
+        save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
+        method = ""
         if site_id is not None:
-            method = f"site{site_id+1} " + method
-        metrics = [method, score, bin_score, auc, loss, loss_1, loss_0, recall, precision, bin_recall, bin_precision, threshold, selectedp]
+            df = df[df["site_id"] == site_id]
+            method = f"site{site_id+1} "
+        cls = cls.capitalize()
+        method += f"{cls[:3]} {train} by {by}"
+        metrics = method + self.eval_metrics(df, cls, by)
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
@@ -338,17 +339,14 @@ class trainer:
                 cls = cls[:-1] + "/"
 
         if train == "Val":
-            self.eval_write(metrics[1:], cls, epoch, by, save_list=Save_list)
+            for i in range(len(save_list[:-2])):
+                self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
         data_lib = {}
-        for i in range(len(Save_list)):
-            data_lib[f"Result/{cls[:-1]} {train} {Save_list[i]}"] = metrics[i+1]
+        for i in range(len(save_list)):
+            data_lib[f"Result/{cls[:-1]} {train} {save_list[i]}"] = metrics[i+1]
             metrics[i+1] = round(metrics[i+1], 3)
         table.add_row(metrics)
-        return bin_score, loss, data_lib, table
-    
-    def eval_write(self, metrics, cls, epoch, by, save_list, train="Val"):
-        for i in range(len(save_list[:-2])):
-            self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
+        return metrics[2], metrics[4], data_lib, table
 
     def optimize(self, df, all_labels, cls, by="prediction_id"):
         bin_score = -0.01
@@ -365,14 +363,12 @@ class trainer:
                 def funct(x):
                     return np.power(np.mean(x.pow(p)), 1.0/p)
                 all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": funct})[f"{cls}_outputs"])
-            for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95]:
-                all_outputs_thres = (all_outputs > i).astype(np.int8)
-                a, b, c = pfbeta(all_labels, all_outputs_thres, 1.0)
-                if a > bin_score:
-                    bin_score = a
-                    bin_recall = b
-                    bin_precision = c
-                    threshold = i
+                temp_f1, temp_recall, temp_precision, temp_threshold = pfbeta_thres(all_labels, all_outputs, 1.0)
+                if temp_f1 > bin_score:
+                    bin_score = temp_f1
+                    bin_recall = temp_recall
+                    bin_precision = temp_precision
+                    threshold = temp_threshold
                     selectedp = p
         
         if selectedp==100:

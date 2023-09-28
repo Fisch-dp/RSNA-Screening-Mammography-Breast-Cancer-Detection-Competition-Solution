@@ -147,6 +147,25 @@ def pfbeta(labels, predictions, beta):
         
     return float(result), float(c_recall), float(c_precision)
 
+def pfbeta_thres(labels, predictions, beta):
+    labels = np.array(labels)
+    predictions = np.array(predictions)
+    precision, recall, thresholds = metrics.precision_recall_curve(labels, predictions)
+    precision = np.array(precision)
+    recall = np.array(recall)
+    thresholds = np.array(thresholds)
+    nominator = (1 + beta**2) * (precision * recall)
+    denominator = (beta**2 * precision + recall)
+    denominator = denominator[nominator > 0.01]
+    nominator = nominator[nominator > 0.01]
+    fscore = np.nan_to_num(nominator / denominator, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
+    fscore_max = np.max(fscore)
+    threshold_max = thresholds[np.argmax(fscore)]
+    precision_max = precision[np.argmax(fscore)]
+    recall_max = recall[np.argmax(fscore)]
+    
+    return fscore_max, recall_max, precision_max, threshold_max
+
 def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
 
     df_out = X.copy(deep=True)
@@ -228,23 +247,27 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
-            axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
             precision, recall, thresholds = metrics.precision_recall_curve(df[f"{cls}"], df[f"{cls}_outputs"])
+            display = metrics.PrecisionRecallDisplay(recall=recall, precision=precision)
+            display.plot(ax=axes[i,j], label = "All")
+            site_1_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==0][f"{cls}"], df[df["site_id"]==0][f"{cls}_outputs"], ax=axes[i,j], label=f"site_1")
+            site_2_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==1][f"{cls}"], df[df["site_id"]==1][f"{cls}_outputs"], ax=axes[i,j], label=f"site_2")
+            
             f_scores = np.linspace(0.1, 0.7, num=4)
-            lines, labels = [], []
             for f_score in f_scores:
                 x = np.linspace(0.01, 1)
                 y = f_score * x / (2 * x - f_score)
                 (l,) = axes[i,j].plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
                 axes[i,j].annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
-            
-            display = metrics.PrecisionRecallDisplay(
-                recall=recall,
-                precision=precision,
-            )
-            display.plot(ax=axes[i,j], label = "All")
-            site_1_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==0][f"{cls}"], df[df["site_id"]==0][f"{cls}_outputs"], ax=axes[i,j], label=f"site_1")
-            site_2_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==1][f"{cls}"], df[df["site_id"]==1][f"{cls}_outputs"], ax=axes[i,j], label=f"site_2")
+
+            f1score_max, recall_max, precision_max, threshold_max = pfbeta_thres(df[f"{cls}"], df[f"{cls}_outputs"], 1.0)
+            text=''
+            text+=f'MAX f1score {f1score_max: 0.5f} @ th = {threshold_max: 0.5f}\n'
+            text+=f'prec {precision_max: 0.5f}, recall {recall_max: 0.5f}, pr-auc {auc: 0.5f}\n'
+            text+=f"{df_names[i]} {cls.capitalize()}\n"
+            axes[i,j].set_title(text)
+            axes[i,j].xlabel('Rrecall')
+            axes[i,j].ylabel('Precision')
             
             x = recall
             y = precision
@@ -259,12 +282,21 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
             axes[i,j].set_xlim(np.min(x)-0.1, np.max(x)+0.1)
             axes[i,j].set_ylim(np.min(y)-0.1, np.max(y)+0.1)
             axes[i,j].add_collection(line_segments)
-            _ = fig.colorbar(line_segments, cmap='hsv', ax=axes[i][j])
+            _ = fig.colorbar(line_segments, cmap='hsv', ax=axes[i][j], label='threshold')
             
             lims = [
                 np.min([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # min of both axes
                 np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
             ]
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
-            
+
+    plt.legend()     
+    plt.show()
+
+    
+
+    
+    plt.title(text)
+    plt.colorbar(s,)
+    
     plt.show()

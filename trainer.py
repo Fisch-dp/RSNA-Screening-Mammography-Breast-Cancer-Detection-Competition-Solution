@@ -327,8 +327,9 @@ class trainer:
             df = df[df["site_id"] == site_id]
             method = f"site{site_id+1} "
         cls = cls.capitalize()
+        metrics = self.eval_metrics(df, cls, by)
         method += f"{cls[:3]} {train} by {by}"
-        metrics = method + self.eval_metrics(df, cls, by)
+        metrics = method + metrics
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 

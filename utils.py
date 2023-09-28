@@ -163,6 +163,7 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
 def get_probability_hist(df_list, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 4, figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
+    plt.set_title("Evaluat
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
@@ -197,3 +198,7 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
             sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
     plt.show()
+
+def get_thres_df(df, threshold):
+    df["cancer_thres"] = (df[["cancer"] > threshold)
+    return df

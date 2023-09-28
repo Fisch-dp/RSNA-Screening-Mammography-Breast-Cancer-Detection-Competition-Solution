@@ -24,6 +24,9 @@ from sklearn.model_selection import StratifiedGroupKFold
 from config import *
 import warnings
 import seaborn as sns
+from sklearn import metrics
+from matplotlib.collections import LineCollection
+from sklearn.metrics import PrecisionRecallDisplay
 
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
@@ -203,4 +206,63 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
         for j in [0,1]:
             sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
+    plt.show()
+
+def color_map(data, cmap):
+    
+    dmin, dmax = np.nanmin(data), np.nanmax(data)
+    cmo = plt.cm.get_cmap(cmap)
+    cs, k = list(), 256/cmo.N
+    
+    for i in range(cmo.N):
+        c = cmo(i)
+        for j in range(int(i*k), int((i+1)*k)):
+            cs.append(c)
+    cs = np.array(cs)
+    data = np.uint8(255*(data-dmin)/(dmax-dmin))
+    
+    return cs[data]
+
+def get_PR_curve(df_list, df_names=["Train", "Val"]):
+    fig, axes = plt.subplots(len(df_list), 4, figsize=(7, 7))
+    for i, df in enumerate(df_list):
+        for j, cls in enumerate(cfg.out_classes):
+            precision, recall, thresholds = metrics.precision_recall_curve(df[f"{cls}"], df[f"{cls}_outputs"])
+            f_scores = np.linspace(0.1, 0.7, num=4)
+            lines, labels = [], []
+            for f_score in f_scores:
+                x = np.linspace(0.01, 1)
+                y = f_score * x / (2 * x - f_score)
+                (l,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
+                plt.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
+            
+            display = metrics.PrecisionRecallDisplay(
+                recall=recall,
+                precision=precision,
+            )
+            display.plot(ax=axes[i,j])
+            site_1_display = PrecisionRecallDisplay.from_predictions(df["site_id"==0][f"{cls}"], df["site_id"==0][f"{cls}_outputs"], ax=axes[i,j], name=f"site_1")
+            site_2_display = PrecisionRecallDisplay.from_predictions(df["site_id"==1][f"{cls}"], df["site_id"==1][f"{cls}_outputs"], ax=axes[i,j], name=f"site_2")
+            
+            x = recall
+            y = precision
+            ps = np.stack((x,y), axis=1)
+            segments = np.stack((ps[:-1], ps[1:]), axis=1)
+
+            cmap = 'hsv'
+            colors = color_map(thresholds, cmap)
+            colors = color_map(y[:-1], cmap)
+            line_segments = LineCollection(segments, colors=colors, linewidths=3, linestyles='solid', cmap=cmap)
+
+            axes[i,j].set_xlim(np.min(x)-0.1, np.max(x)+0.1)
+            axes[i,j].set_ylim(np.min(y)-0.1, np.max(y)+0.1)
+            axes[i,j].add_collection(line_segments)
+            cb = fig.colorbar(line_segments, cmap='hsv')
+            
+            lims = [
+                np.min([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # min of both axes
+                np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
+            ]
+            plt.plot(lims, lims, 'k-', alpha=0.3, zorder=0, color="gray")
+            
     plt.show()

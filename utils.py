@@ -261,6 +261,7 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
                 axes[i,j].annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
 
             f1score_max, recall_max, precision_max, threshold_max = pfbeta_thres(df[f"{cls}"], df[f"{cls}_outputs"], 1.0)
+            auc = metrics.roc_auc_score(df[f"{cls}"], df[f"{cls}_outputs"])
             text=''
             text+=f'MAX f1score {f1score_max: 0.5f} @ th = {threshold_max: 0.5f}\n'
             text+=f'prec {precision_max: 0.5f}, recall {recall_max: 0.5f}, pr-auc {auc: 0.5f}\n'

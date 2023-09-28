@@ -227,6 +227,9 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 4, figsize=(7, 7))
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
+            axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
+            axes[i,j].set_xlabel("Recall")
+            axes[i,j].set_xlabel("Precision")
             precision, recall, thresholds = metrics.precision_recall_curve(df[f"{cls}"], df[f"{cls}_outputs"])
             f_scores = np.linspace(0.1, 0.7, num=4)
             lines, labels = [], []

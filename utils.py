@@ -261,7 +261,7 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
             axes[i,j].set_xlim(np.min(x)-0.1, np.max(x)+0.1)
             axes[i,j].set_ylim(np.min(y)-0.1, np.max(y)+0.1)
             axes[i,j].add_collection(line_segments)
-            cb = axes[i,j].colorbar(line_segments, cmap='hsv')
+            _ = fig.colorbar(line_segments, cmap='hsv', ax=axes[i][j])
             
             lims = [
                 np.min([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # min of both axes

@@ -224,7 +224,7 @@ def color_map(data, cmap):
     return cs[data]
 
 def get_PR_curve(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(len(df_list), 4, figsize=(7, 7))
+    fig, axes = plt.subplots(len(df_list), 2, figsize=(7, 7))
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
             axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
@@ -244,8 +244,8 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
                 precision=precision,
             )
             display.plot(ax=axes[i,j])
-            site_1_display = PrecisionRecallDisplay.from_predictions(df["site_id"==0][f"{cls}"], df["site_id"==0][f"{cls}_outputs"], ax=axes[i,j], name=f"site_1")
-            site_2_display = PrecisionRecallDisplay.from_predictions(df["site_id"==1][f"{cls}"], df["site_id"==1][f"{cls}_outputs"], ax=axes[i,j], name=f"site_2")
+            site_1_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==0][f"{cls}"], df[df["site_id"]==0][f"{cls}_outputs"], ax=axes[i,j], name=f"site_1")
+            site_2_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==1][f"{cls}"], df[df["site_id"]==1][f"{cls}_outputs"], ax=axes[i,j], name=f"site_2")
             
             x = recall
             y = precision

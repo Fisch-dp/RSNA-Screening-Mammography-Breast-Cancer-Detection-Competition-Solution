@@ -225,7 +225,7 @@ def color_map(data, cmap):
 
 def get_PR_curve(df_list, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 2, figsize=(7, 7))
-    plt.subplots_adjust(hspace=0.2, wspace=0.2)
+    plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
             axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
@@ -267,6 +267,6 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
                 np.min([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # min of both axes
                 np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
             ]
-            axes[i,j].plot(lims, lims, 'k-', alpha=0.3, zorder=0, color="gray")
+            axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
             
     plt.show()

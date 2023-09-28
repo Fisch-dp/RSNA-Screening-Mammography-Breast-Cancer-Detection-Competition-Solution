@@ -267,8 +267,8 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
             text+=f'prec {precision_max: 0.5f}, recall {recall_max: 0.5f}, pr-auc {auc: 0.5f}\n'
             text+=f"{df_names[i]} {cls.capitalize()}\n"
             axes[i,j].set_title(text)
-            axes[i,j].xlabel('Rrecall')
-            axes[i,j].ylabel('Precision')
+            axes[i,j].set_xlabel('Rrecall')
+            axes[i,j].set_ylabel('Precision')
             
             x = recall
             y = precision

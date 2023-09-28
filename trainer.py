@@ -329,7 +329,6 @@ class trainer:
         metrics = self.eval_metrics(df, cls, by)
         cls = cls.capitalize()
         method += f"{cls[:3]} {train} by {by}"
-        metrics = [method] + metrics
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 
@@ -346,6 +345,7 @@ class trainer:
         for i in range(len(save_list)):
             data_lib[f"Result/{cls[:-1]} {train} {save_list[i]}"] = metrics[i+1]
             metrics[i+1] = round(metrics[i+1], 3)
+        metrics = [method] + metrics
         table.add_row(metrics)
         return metrics[2], metrics[4], data_lib, table
 

@@ -326,8 +326,8 @@ class trainer:
         if site_id is not None:
             df = df[df["site_id"] == site_id]
             method = f"site{site_id+1} "
-        cls = cls.capitalize()
         metrics = self.eval_metrics(df, cls, by)
+        cls = cls.capitalize()
         method += f"{cls[:3]} {train} by {by}"
         metrics = method + metrics
 

@@ -171,7 +171,7 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
     for i, df in enumerate(df_list):
         for j, cls in enumerate(plot_class):
             if threshold is not None:
-                df[f"{cls}"] = (df[f"{cls}_outputs"] > threshold[i,j]).astype(int)
+                df[f"{cls}"] = (df[f"{cls}_outputs"] > threshold[i][j]).astype(int)
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
 

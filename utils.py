@@ -224,21 +224,19 @@ def color_map(data, cmap):
     return cs[data]
 
 def get_PR_curve(df_list, df_names=["Train", "Val"]):
-    fig, axes = plt.subplots(len(df_list), 2, figsize=(7, 7))
+    fig, axes = plt.subplots(len(df_list), 2, figsize=(10, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
             axes[i,j].set_title(f"{df_names[i]} {cls.capitalize()}")
-            axes[i,j].set_xlabel("Recall")
-            axes[i,j].set_xlabel("Precision")
             precision, recall, thresholds = metrics.precision_recall_curve(df[f"{cls}"], df[f"{cls}_outputs"])
             f_scores = np.linspace(0.1, 0.7, num=4)
             lines, labels = [], []
             for f_score in f_scores:
                 x = np.linspace(0.01, 1)
                 y = f_score * x / (2 * x - f_score)
-                (l,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
-                plt.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
+                (l,) = axes[i,j].plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
+                axes[i,j].annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
             
             display = metrics.PrecisionRecallDisplay(
                 recall=recall,

@@ -290,14 +290,4 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
                 np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
             ]
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
-
-    plt.legend()     
-    plt.show()
-
-    
-
-    
-    plt.title(text)
-    plt.colorbar(s,)
-    
     plt.show()

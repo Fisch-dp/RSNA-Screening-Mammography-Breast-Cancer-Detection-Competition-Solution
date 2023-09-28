@@ -343,8 +343,8 @@ class trainer:
                 self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
         data_lib = {}
         for i in range(len(save_list)):
-            data_lib[f"Result/{cls[:-1]} {train} {save_list[i]}"] = metrics[i+1]
-            metrics[i+1] = round(metrics[i+1], 3)
+            data_lib[f"Result/{cls[:-1]} {train} {save_list[i]}"] = metrics[i]
+            metrics[i] = round(metrics[i], 3)
         metrics = [method] + metrics
         table.add_row(metrics)
         return metrics[2], metrics[4], data_lib, table

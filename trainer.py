@@ -296,15 +296,15 @@ class trainer:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID:
                     if cls == self.out_classes[0]: 
-                        BINSCORE, LOSS, data_lib, table = self.print_write(df, epoch, cls, table, train, by=k)
+                        BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         for s in [0, 1]:
-                            _, _, _, table = self.print_write(df, epoch, cls, table, train, by=k, site_id=s)
+                            _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
                     elif cls != self.out_classes[0]:
-                        _, _, lib, table = self.print_write(df, epoch, cls, table, train, by=k)
+                        _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         data_lib.update(lib)
                 else:
                     if cls == self.out_classes[0]:
-                        _, _, _, table = self.print_write(df, epoch, cls, table, train, by=k)
+                        _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k)
         print(table)
         return BINSCORE, LOSS, data_lib
     

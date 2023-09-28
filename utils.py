@@ -165,14 +165,13 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     plot_class=cfg.out_classes
     based_on = "Label"
-    if threshold is not None:
-        plot_class = ["cancer"]
-        for df in df_list: df["cancer"] = (df[["cancer_outputs"] > threshold)
-        based_on = "Thres_Output"
-    fig.suptitle('Based on {based_on}', fontsize=16)
+    if threshold is not None: based_on = "Thres_Output"
+    fig.suptitle(f'Based on {based_on}', fontsize=16)
     
     for i, df in enumerate(df_list):
         for j, cls in enumerate(plot_class):
+            if threshold is not None:
+                df[f"{cls}"] = (df[f"{cls}_outputs"] > threshold[i,j]).astype(int)
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
 

@@ -329,7 +329,7 @@ class trainer:
         metrics = self.eval_metrics(df, cls, by)
         cls = cls.capitalize()
         method += f"{cls[:3]} {train} by {by}"
-        metrics = method + metrics
+        metrics = [method] + metrics
 
         if by != "prediction_id": by += "/"
         elif by == "prediction_id": 

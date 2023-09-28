@@ -244,7 +244,7 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
                 recall=recall,
                 precision=precision,
             )
-            display.plot(ax=axes[i,j])
+            display.plot(ax=axes[i,j], label = "All")
             site_1_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==0][f"{cls}"], df[df["site_id"]==0][f"{cls}_outputs"], ax=axes[i,j], label=f"site_1")
             site_2_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==1][f"{cls}"], df[df["site_id"]==1][f"{cls}_outputs"], ax=axes[i,j], label=f"site_2")
             

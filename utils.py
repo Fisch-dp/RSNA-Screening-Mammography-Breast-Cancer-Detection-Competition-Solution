@@ -191,7 +191,7 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     return df_out
 
 def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
-    fig, axes = plt.subplots(len(df_list), 4, figsize=(20,10))
+    fig, axes = plt.subplots(len(df_list), len(plot_class) + 2, figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     plot_class=cfg.out_classes
     based_on = "Label"
@@ -251,7 +251,7 @@ def color_map(data, cmap):
     return cs[data]
 
 def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction_id"):
-    fig, axes = plt.subplots(len(df_list), 2, figsize=(10, 10))
+    fig, axes = plt.subplots(len(df_list), len(cfg.out_classes), figsize=(10, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):

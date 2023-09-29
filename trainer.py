@@ -337,14 +337,14 @@ class trainer:
                 by = f"site{site_id+1}/"
             else:
                 by = ""
-                cls = cls[:-1] + "/"
+                cls = cls[:3] + "/"
 
         if train == "Val":
             for i in range(len(save_list[:-2])):
                 self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
         data_lib = {}
         for i in range(len(save_list)):
-            data_lib[f"Result/{cls[:-1]} {train} {save_list[i]}"] = metrics[i]
+            data_lib[f"Result/{cls[:3]} {train} {save_list[i]}"] = metrics[i]
             metrics[i] = round(metrics[i], 3)
         metrics = [method] + metrics
         table.add_row(metrics)

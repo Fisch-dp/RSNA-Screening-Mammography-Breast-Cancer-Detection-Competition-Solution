@@ -147,24 +147,32 @@ def pfbeta(labels, predictions, beta):
         
     return float(result), float(c_recall), float(c_precision)
 
-def pfbeta_thres(labels, predictions, beta):
-    labels = np.array(labels)
-    predictions = np.array(predictions)
-    precision, recall, thresholds = metrics.precision_recall_curve(labels, predictions)
+def get_f1score(truth, probability, threshold = np.linspace(0, 1, 50)):
+    f1score = []
+    precision=[]
+    recall=[]
+    for t in threshold:
+        predict = (probability > t).astype(np.float32)
+
+        tp = ((predict >= 0.5) & (truth >= 0.5)).sum()
+        fp = ((predict >= 0.5) & (truth < 0.5)).sum()
+        fn = ((predict < 0.5) & (truth >= 0.5)).sum()
+
+        r = tp / (tp + fn + 1e-3)
+        p = tp / (tp + fp + 1e-3)
+        f1 = 2 * r * p / (r + p + 1e-3)
+        f1score.append(f1)
+        precision.append(p)
+        recall.append(r)
+    f1score = np.array(f1score)
     precision = np.array(precision)
     recall = np.array(recall)
-    thresholds = np.array(thresholds)
-    nominator = (1 + beta**2) * (precision * recall)
-    denominator = (beta**2 * precision + recall)
-    denominator = denominator[nominator > 0.01]
-    nominator = nominator[nominator > 0.01]
-    fscore = np.nan_to_num(nominator / denominator, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
-    fscore_max = np.max(fscore)
-    threshold_max = thresholds[np.argmax(fscore)]
-    precision_max = precision[np.argmax(fscore)]
-    recall_max = recall[np.argmax(fscore)]
-    
-    return fscore_max, recall_max, precision_max, threshold_max
+    return f1score, precision, recall, threshold
+
+def pfbeta_thres(labels, predictions, beta):
+    f1score, precision, recall, thresholds = get_f1score(np.array(labels), np.array(predictions))
+    i = f1score.argmax()
+    return f1score[i], recall[i], precision[i], thresholds[i]
 
 def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
 
@@ -242,16 +250,31 @@ def color_map(data, cmap):
     
     return cs[data]
 
-def get_PR_curve(df_list, df_names=["Train", "Val"]):
+def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction_id"):
     fig, axes = plt.subplots(len(df_list), 2, figsize=(10, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
         for j, cls in enumerate(cfg.out_classes):
-            precision, recall, thresholds = metrics.precision_recall_curve(df[f"{cls}"], df[f"{cls}_outputs"])
+            all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
+            site1_labels = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
+            site2_labels = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
+            selectedp = best_metric[f"Result/{cls.capitalize()[:3]} {df_names[i]} SelectedP"]
+            if selectedp==100:
+                all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+                site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+                site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+            else:
+                def gem(x):
+                    return np.power(np.mean(x.pow(selectedp)), 1.0/selectedp)
+                all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+                site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+                site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+            
+            _, precision, recall, thresholds = get_f1score(all_labels, all_outputs)
             display = metrics.PrecisionRecallDisplay(recall=recall, precision=precision)
             display.plot(ax=axes[i,j], label = "All")
-            site_1_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==0][f"{cls}"], df[df["site_id"]==0][f"{cls}_outputs"], ax=axes[i,j], label=f"site_1")
-            site_2_display = PrecisionRecallDisplay.from_predictions(df[df["site_id"]==1][f"{cls}"], df[df["site_id"]==1][f"{cls}_outputs"], ax=axes[i,j], label=f"site_2")
+            site_1_display = PrecisionRecallDisplay.from_predictions(site1_labels, site1_outputs, ax=axes[i,j], label=f"site_1")
+            site_2_display = PrecisionRecallDisplay.from_predictions(site2_labels, site2_outputs, ax=axes[i,j], label=f"site_2")
             
             f_scores = np.linspace(0.1, 0.7, num=4)
             for f_score in f_scores:
@@ -267,7 +290,7 @@ def get_PR_curve(df_list, df_names=["Train", "Val"]):
             text+=f'prec {precision_max: 0.5f}, recall {recall_max: 0.5f}, pr-auc {auc: 0.5f}\n'
             text+=f"{df_names[i]} {cls.capitalize()}\n"
             axes[i,j].set_title(text)
-            axes[i,j].set_xlabel('Rrecall')
+            axes[i,j].set_xlabel('Recall')
             axes[i,j].set_ylabel('Precision')
             
             x = recall

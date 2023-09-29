@@ -191,15 +191,14 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
     return df_out
 
 def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
-    fig, axes = plt.subplots(len(df_list), len(plot_class) + 2, figsize=(20,10))
+    fig, axes = plt.subplots(len(df_list), len(cfg.out_classes) + 2, figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
-    plot_class=cfg.out_classes
     based_on = "Label"
     if threshold is not None: based_on = "Thres_Output"
     fig.suptitle(f'Based on {based_on}', fontsize=16)
     
     for i, df in enumerate(df_list):
-        for j, cls in enumerate(plot_class):
+        for j, cls in enumerate(cfg.out_classes):
             if threshold is not None:
                 df[f"{cls}"] = (df[f"{cls}_outputs"] > threshold[i][j])
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()

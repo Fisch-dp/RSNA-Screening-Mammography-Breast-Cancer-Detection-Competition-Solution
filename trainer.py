@@ -271,7 +271,8 @@ class trainer:
             all_image_ids.extend(batch["image_id"])
 
             #Evaluation
-            outputs_list, _ = self.model(inputs, *aux_input_list)
+            if self.mode == "multi": outputs_list, _ = self.model(inputs, *aux_input_list)
+            else: outputs_list = self.model(inputs, *aux_input_list)
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, self.model(torch.flip(inputs, dims=[3, ])[0], *aux_input_list))]
 

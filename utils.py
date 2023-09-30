@@ -289,19 +289,12 @@ def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction
                 site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
                 site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
             
-            _, precision, recall, thresholds = get_f1score(all_labels, all_outputs)
+            precision, recall, thresholds = metrics.precision_recall_curve(all_labels, all_outputs)
             display = metrics.PrecisionRecallDisplay(recall=recall, precision=precision)
             display.plot(ax=axes[i,j], label = "All")
             site_1_display = PrecisionRecallDisplay.from_predictions(site1_labels, site1_outputs, ax=axes[i,j], label=f"site_1")
             site_2_display = PrecisionRecallDisplay.from_predictions(site2_labels, site2_outputs, ax=axes[i,j], label=f"site_2")
-            
-            f_scores = np.linspace(0.1, 0.7, num=4)
-            for f_score in f_scores:
-                x = np.linspace(0.01, 1)
-                y = f_score * x / (2 * x - f_score)
-                (l,) = axes[i,j].plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
-                axes[i,j].annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
-
+        
             f1score_max, recall_max, precision_max, threshold_max = pfbeta_thres(all_labels, all_outputs, 1.0)
             auc = metrics.roc_auc_score(df[f"{cls}"], df[f"{cls}_outputs"])
             text=''
@@ -309,9 +302,20 @@ def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction
             text+=f'prec {precision_max: 0.5f}, recall {recall_max: 0.5f}, pr-auc {auc: 0.5f}\n'
             text+=f"{df_names[i]} {cls.capitalize()}\n"
             axes[i,j].set_title(text)
+            axes[i,j].legend(loc='upper right')
             axes[i,j].set_xlabel('Recall')
             axes[i,j].set_ylabel('Precision')
+            axes[i,j].set_xlim([0.0, 1.0])
+            axes[i,j].set_ylim([0.0, 1.05])
             
+            axes[i,j].plot([0,1],[0,1], color="gray", alpha=0.2)
+            f_scores = np.linspace(0.1, 0.7, num=4)
+            for f_score in f_scores:
+                x = np.linspace(0.01, 1)
+                y = f_score * x / (2 * x - f_score)
+                (l,) = axes[i,j].plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
+                axes[i,j].annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
+
             x = recall
             y = precision
             ps = np.stack((x,y), axis=1)
@@ -332,8 +336,8 @@ def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction
                 np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
             ]
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
+    
     plt.show()
-
 def read(sample, aug, cfg, Train):
     data = {
             "image": os.path.join(cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),

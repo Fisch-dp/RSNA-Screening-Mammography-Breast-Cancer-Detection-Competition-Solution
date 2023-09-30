@@ -28,6 +28,26 @@ from sklearn import metrics
 from matplotlib.collections import LineCollection
 from sklearn.metrics import PrecisionRecallDisplay
 
+import albumentations as A
+from albumentations import *
+from albumentations.pytorch.transforms import ToTensorV2
+import numpy as np
+import os
+from config import *
+from utils import *
+from torch.utils.data import DataLoader, Dataset
+import torch
+import random
+from monai.transforms import (
+    Compose,
+    LoadImaged,
+    EnsureChannelFirstd,
+    RepeatChanneld,
+    Transposed,
+    Resized,
+    Lambdad
+)
+
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
@@ -313,3 +333,72 @@ def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction
             ]
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
     plt.show()
+
+def read(sample, aug, cfg, Train):
+    data = {
+            "image": os.path.join(cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
+            "prediction_id": sample.prediction_id,
+            "patient_id": sample.patient_id,
+            "image_id": sample.image_id,
+            "cancer": np.expand_dims(np.array(sample.cancer, dtype=np.float32), axis=0),
+            "biopsy": np.expand_dims(np.array(sample.biopsy, dtype=np.float32), axis=0),
+            "invasive": np.expand_dims(np.array(sample.invasive, dtype=np.float32), axis=0),
+            "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0),
+            "implant": np.array(sample.implant, dtype=np.int8),
+            "machine": np.array(sample.machine_id, dtype=np.int8),
+            "site": np.array(sample.site_id, dtype=np.int8),
+            "view": np.array(sample['view'], dtype=np.int8)  
+        }
+    data = aug(data)
+
+    if (cfg.Trans is not None and Train):
+            data['image'] = data['image'].permute(1,2,0) * 255
+            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
+            Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
+            data['image'] = Trans2(image=data['image'])['image']
+            data['image'] = data['image'].to(torch.float32) / 255
+    return data
+
+def simple_invert(data, supp_data, cfg):
+    data['cancer'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
+    data['invasive'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
+    data['image'] = data['image'] * (1 - cfg.posMixStrength) + supp_data['image'] * cfg.posMixStrength
+    return data
+
+def Mixup(data, supp_data, alpha=1.0):
+    if alpha > 0: lam = np.random.beta(alpha, alpha)
+    else: lam = 1
+    data['image'] = lam * data['image'] + (1 - lam) * supp_data['image']
+    data['cancer'] = lam * data['cancer'] + (1 - lam) * supp_data['cancer']
+    data['invasive'] = lam * data['invasive'] + (1 - lam) * supp_data['invasive']
+    return data
+
+def CutMix(data, supp_data, alpha=1.0):
+    r = np.random.rand(1)
+    if alpha > 0: 
+        lam = np.random.beta(alpha, alpha)
+        bbx1, bby1, bbx2, bby2 = rand_bbox(data['image'].size(), lam)
+        data['image'][:, bbx1:bbx2, bby1:bby2] = supp_data['image'][:, bbx1:bbx2, bby1:bby2]
+        # adjust lambda to exactly match pixel ratio
+        lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data['image'].size()[-1] * data['image'].size()[-2]))
+        data['cancer'] = lam * data['cancer'] + (1 - lam) * supp_data['cancer']
+        data['invasive'] = lam * data['invasive'] + (1 - lam) * supp_data['invasive']
+    return data
+
+def rand_bbox(size, lam):
+    W = size[2]
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2

@@ -24,7 +24,7 @@ class CustomDataset(Dataset):
         df,
         cfg,
         Train,
-        mixFunction = "simple"
+        mixFunction = cfg.mixFunction
     ):
         super().__init__()
         self.cfg = cfg

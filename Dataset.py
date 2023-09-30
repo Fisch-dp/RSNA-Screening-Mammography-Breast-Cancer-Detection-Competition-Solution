@@ -53,7 +53,7 @@ class CustomDataset(Dataset):
             elif self.mixFunction == "Mixup":
                 data = Mixup(data, supp_data)
             elif self.mixFunction == "CutMix":
-                data = CutMix(data, supp_data, self.cfg)
+                data = CutMix(data, supp_data)
             
         return data
 

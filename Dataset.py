@@ -51,9 +51,9 @@ class CustomDataset(Dataset):
             if self.mixFunction == "simple":
                 data = simple_invert(data, supp_data, self.cfg)
             elif self.mixFunction == "Mixup":
-                data = Mixup(data, supp_data)
+                data = Mixup(data, supp_data, force_label = self.cfg.force_label)
             elif self.mixFunction == "CutMix":
-                data = CutMix(data, supp_data)
+                data = CutMix(data, supp_data, force_label = self.cfg.force_label)
             
         return data
 

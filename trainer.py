@@ -243,6 +243,7 @@ class trainer:
         
     def predict(self, train="Val", best=False):
         if best: model = self.best_model
+        else: model = self.model
         model.eval()
         torch.set_grad_enabled(False)
         

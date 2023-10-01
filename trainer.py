@@ -185,7 +185,7 @@ class trainer:
         labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
         aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
         with autocast():
-            outputs_list = self.model(inputs, *aux_input_list)
+            outputs_list = self.model(inputs, aux_input_list)
             loss = []
             for i in range(len(self.out_classes)):
                 loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
@@ -204,7 +204,7 @@ class trainer:
         prediction_id = batch["prediction_id"]
 
         with autocast():
-            outputs_list, intermediate = self.model(inputs, *aux_input_list)
+            outputs_list, intermediate = self.model(inputs, aux_input_list)
             loss = []
             for i in range(len(self.out_classes)):
                 loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
@@ -273,7 +273,7 @@ class trainer:
             all_image_ids.extend(batch["image_id"])
 
             #Evaluation
-            if self.mode == "multi": outputs_list, _ = model(inputs, *aux_input_list)
+            if self.mode == "multi": outputs_list, _ = model(inputs, aux_input_list)
             else: outputs_list = model(inputs, *aux_input_list)
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], *aux_input_list))]

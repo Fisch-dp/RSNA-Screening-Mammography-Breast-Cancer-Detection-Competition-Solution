@@ -28,10 +28,10 @@ class Model(nn.Module):
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + len(cfg.aux_input) + 1, out_features=1, bias=True)
 
-    def forward(self, x, age, implant, view, site, machine):
+    def forward(self, x, aux_input):
         x = self.model(x)
         list_input = [x]
-        for i in cfg.aux_input:
+        for i in aux_input:
             list_input.append(i.view(-1,1))
         x = torch.cat(list_input, axis=1)
         cancer = self.classifier(x)

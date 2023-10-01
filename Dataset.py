@@ -44,9 +44,10 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.df.iloc[idx]
         data = read(sample, self.aug, self.cfg, self.Train)
-        if sample.difficult_negative_case == 1 and sample.biopsy == 1 and self.Train and random.random() < cfg.invert_difficult:
-            mask = self.df.query(f'cancer == 1')
-            sample = self.df.iloc[np.random.choice(mask.index)]
+        #if sample.difficult_negative_case == 1 and sample.biopsy == 1 and self.Train and random.random() < cfg.invert_difficult:
+        if self.Train and random.random() < cfg.invert_difficult: 
+            #mask = self.df.query(f'cancer == 1')
+            sample = self.df.iloc[np.random.choice(self.df.index)]
             supp_data = read(sample, self.aug, self.cfg, self.Train)
             if self.mixFunction == "simple":
                 data = simple_invert(data, supp_data, self.cfg)

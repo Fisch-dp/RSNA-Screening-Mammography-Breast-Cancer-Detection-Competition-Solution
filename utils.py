@@ -366,6 +366,7 @@ def read(sample, aug, cfg, Train):
 def simple_invert(data, supp_data, cfg):
     data['cancer'] = supp_data['cancer']
     data['invasive'] = supp_data['invasive']
+    data['site'] = data['site'] * (1 - cfg.posMixStrength) + supp_data['site'] * cfg.posMixStrength
     data['image'] = data['image'] * (1 - cfg.posMixStrength) + supp_data['image'] * cfg.posMixStrength
     return data
 

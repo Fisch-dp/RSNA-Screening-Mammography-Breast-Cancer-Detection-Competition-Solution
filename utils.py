@@ -364,8 +364,8 @@ def read(sample, aug, cfg, Train):
     return data
 
 def simple_invert(data, supp_data, cfg):
-    data['cancer'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
-    data['invasive'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
+    data['cancer'] = supp_data['cancer']
+    data['invasive'] = supp_data['invasive']
     data['image'] = data['image'] * (1 - cfg.posMixStrength) + supp_data['image'] * cfg.posMixStrength
     return data
 

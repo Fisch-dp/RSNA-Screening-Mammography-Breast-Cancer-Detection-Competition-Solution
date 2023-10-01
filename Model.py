@@ -30,10 +30,10 @@ class Model(nn.Module):
 
     def forward(self, x, aux_input):
         x = self.model(x)
-        list_input = [x]
-        for i in aux_input:
-            list_input.append(i.view(-1,1))
-        x = torch.cat(list_input, axis=1)
+        x = [x]
+        for i in range(len(aux_input)):
+            x.append(aux_input[i].view(-1,1))
+        x = torch.cat(x, axis=1)
         cancer = self.classifier(x)
         x = torch.cat([x, cancer], axis=1)
         invasive = self.auxclassifier1(x)

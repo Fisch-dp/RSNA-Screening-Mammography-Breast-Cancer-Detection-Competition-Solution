@@ -348,10 +348,10 @@ def read(sample, aug, cfg, Train):
             "biopsy": np.expand_dims(np.array(sample.biopsy, dtype=np.float32), axis=0),
             "invasive": np.expand_dims(np.array(sample.invasive, dtype=np.float32), axis=0),
             "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0),
-            "implant": np.array(sample.implant, dtype=np.int8),
-            "machine": np.array(sample.machine_id, dtype=np.int8),
-            "site": np.array(sample.site_id, dtype=np.int8),
-            "view": np.array(sample['view'], dtype=np.int8)  
+            "implant": np.expand_dims(np.array(sample.implant, dtype=np.float32), axis=0),
+            "machine": np.expand_dims(np.array(sample.machine_id, dtype=np.float32), axis=0),
+            "site": np.expand_dims(np.array(sample.site, dtype=np.float32), axis=0),
+            "view": np.expand_dims(np.array(sample['view'], dtype=np.float32), axis=0),
         }
     data = aug(data)
 

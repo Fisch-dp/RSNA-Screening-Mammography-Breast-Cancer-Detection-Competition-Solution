@@ -350,7 +350,7 @@ def read(sample, aug, cfg, Train):
             "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0),
             "implant": np.expand_dims(np.array(sample.implant, dtype=np.float32), axis=0),
             "machine": np.expand_dims(np.array(sample.machine_id, dtype=np.float32), axis=0),
-            "site": np.expand_dims(np.array(sample.site, dtype=np.float32), axis=0),
+            "site": np.expand_dims(np.array(sample.site_id, dtype=np.float32), axis=0),
             "view": np.expand_dims(np.array(sample['view'], dtype=np.float32), axis=0),
         }
     data = aug(data)

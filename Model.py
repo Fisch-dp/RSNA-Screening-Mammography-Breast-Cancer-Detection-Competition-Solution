@@ -6,7 +6,7 @@ from utils import *
 from timm.models.layers import BatchNormAct2d
 import copy
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg):
         super(Model, self).__init__()
         self.model = timm.create_model(
         cfg.backbone,

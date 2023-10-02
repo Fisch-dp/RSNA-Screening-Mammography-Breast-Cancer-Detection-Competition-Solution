@@ -375,8 +375,6 @@ def Mixup(data, supp_data, alpha=1.0):
     else: lam = 1
     for key in ["cancer", "invasive", "implant"]:
         data[key] = np.maximum(data[key], supp_data[key])
-    for key in ["site", "view", "image"]:
-        data[key] = lam * data[key] + (1 - lam) * supp_data[key]
     return data
 
 def CutMix(data, supp_data, alpha=1.0):

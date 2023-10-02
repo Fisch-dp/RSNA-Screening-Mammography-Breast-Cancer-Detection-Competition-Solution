@@ -364,23 +364,22 @@ def read(sample, aug, cfg, Train):
     return data
 
 def simple_invert(data, supp_data, cfg):
-    data['cancer'] = supp_data['cancer']
-    data['invasive'] = supp_data['invasive']
-    data['image'] = data['image'] * (1 - cfg.posMixStrength) + supp_data['image'] * cfg.posMixStrength
+    for key in ["cancer", "invasive", "implant"]:
+        data[key] = np.max(data[key], supp_data[key])
+    for key in ["age", "machine", "site", "view", "image"]:
+        data[key] = data[key] * (1 - cfg.posMixStrength) + supp_data[key] * cfg.posMixStrength
     return data
 
-def Mixup(data, supp_data, force_label=False, alpha=1.0):
+def Mixup(data, supp_data, alpha=1.0):
     if alpha > 0: lam = np.random.beta(alpha, alpha)
     else: lam = 1
-    data['image'] = lam * data['image'] + (1 - lam) * supp_data['image']
-    data['cancer'] = lam * data['cancer'] + (1 - lam) * supp_data['cancer']
-    data['invasive'] = lam * data['invasive'] + (1 - lam) * supp_data['invasive']
-    if force_label:
-        data['cancer'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
-        data['invasive'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
+    for key in ["cancer", "invasive", "implant"]:
+        data[key] = np.max(data[key], supp_data[key])
+    for key in ["age", "machine", "site", "view", "image"]:
+        data[key] = lam * data[key] + (1 - lam) * supp_data[key]
     return data
 
-def CutMix(data, supp_data, force_label=False, alpha=1.0):
+def CutMix(data, supp_data, alpha=1.0):
     r = np.random.rand(1)
     if alpha > 0: 
         lam = np.random.beta(alpha, alpha)
@@ -388,11 +387,10 @@ def CutMix(data, supp_data, force_label=False, alpha=1.0):
         data['image'][:, bbx1:bbx2, bby1:bby2] = supp_data['image'][:, bbx1:bbx2, bby1:bby2]
         # adjust lambda to exactly match pixel ratio
         lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data['image'].size()[-1] * data['image'].size()[-2]))
-        data['cancer'] = lam * data['cancer'] + (1 - lam) * supp_data['cancer']
-        data['invasive'] = lam * data['invasive'] + (1 - lam) * supp_data['invasive']
-        if force_label:
-            data['cancer'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
-            data['invasive'] = np.expand_dims(np.array(cfg.valueForInvert, dtype=np.float32), axis=0)
+        for key in ["cancer", "invasive", "implant"]:
+            data[key] = np.max(data[key], supp_data[key])
+        for key in ["age", "machine", "site", "view"]:
+            data[key] = lam * data[key] + (1 - lam) * supp_data[key]
     return data
 
 def rand_bbox(size, lam):

@@ -265,6 +265,7 @@ class trainer:
 
         out_dic = {f'{i}': [] for i in self.out_classes}
         all_image_ids = []
+        all_prediction_ids = []
         
         for i, _ in enumerate(progress_bar):
             if self.cfg.test_iter is not None:#Testing
@@ -275,9 +276,10 @@ class trainer:
             inputs = batch["image"].float().to(self.cfg.device)
             aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
+            all_prediction_ids.extend(batch["prediction_id"])
 
             #Evaluation
-            if self.mode == "multi": outputs_list, _ = model(inputs, aux_input_list)
+            if self.mode == "multi": outputs_list = model(inputs, aux_input_list, all_prediction_ids)
             else: outputs_list = model(inputs, aux_input_list)
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list))]

@@ -5,7 +5,7 @@ from config import *
 from utils import *
 #from CrossAttention import *
 import copy
-from diffusers.model.cross_attention import *
+import CrossAttention
 class Model(nn.Module):
     def __init__(self, cfg):
         super(Model, self).__init__()

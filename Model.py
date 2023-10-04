@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from config import *
 from utils import *
-from timm.models.layers import BatchNormAct2d
+from CrossAttention import *
 import copy
 class Model(nn.Module):
     def __init__(self, cfg):
@@ -24,13 +24,16 @@ class Model(nn.Module):
                 padding=self.model.conv_stem.padding,
                 bias=self.model.conv_stem.bias,
             )
-
+        self.CrossAttention = CrossAttention(cfg)
         self.classifier = nn.Linear(in_features=1280 + len(cfg.aux_input), out_features=1, bias=True)
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + len(cfg.aux_input) + 1, out_features=1, bias=True)
 
-    def forward(self, x, aux_input):
+    def forward(self, x, aux_input, prediction_id_list):
         x = self.model(x)
+        for prediction_id in prediction_id_list:
+            indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element == prediction_id]).to(cfg.device)
+            x[indices] = self.CrossAttention(x[indices], x[indices])
         x = [x]
         for i in range(len(aux_input)):
             x.append(aux_input[i].view(-1,1))
@@ -38,5 +41,4 @@ class Model(nn.Module):
         cancer = self.classifier(x)
         x = torch.cat([x, cancer], axis=1)
         invasive = self.auxclassifier1(x)
-        
         return [cancer, invasive]

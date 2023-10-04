@@ -28,7 +28,7 @@ class trainer:
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
                  fold = 0,
-                 mode = "single",# "multi"
+                 mode = "single",# "triplet", "crossAttention", "multi"
                  ):
         
         set_seed(cfg.seed)
@@ -156,7 +156,7 @@ class trainer:
                 if i == self.cfg.test_iter: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
-            if self.mode == "multi":   
+            if self.mode == "triplet":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
             else:   
                 loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
@@ -180,39 +180,36 @@ class trainer:
             
         print(table.get_string())
 
-    def train(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs = batch["image"].float().to(self.cfg.device)
-        labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
-        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
-        with autocast():
-            outputs_list = self.model(inputs, aux_input_list)
-            loss = []
-            for i in range(len(self.out_classes)):
-                loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-                loss_dic[self.out_classes[i]].append(loss[i].item())
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-                temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-                label_dic[self.out_classes[i]].extend(temp_labels) 
-
-        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
-    
-    def tripletTrain(self, batch, iteration, label_dic, out_dic, loss_dic, out_print):
+    def read_data(self, batch):
         inputs = batch["image"].float().to(self.cfg.device)
         labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
         aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
         prediction_id = batch["prediction_id"]
-
+        return inputs, labels_list, aux_input_list, prediction_id
+    
+    def calculate_save_loss(self, loss_dic, out_dic, label_dic, labels_list, outputs_list):
+        loss = []
+        for i in range(len(self.out_classes)):
+            loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
+            loss_dic[self.out_classes[i]].append(loss[i].item())
+            out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+            temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+            temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
+            label_dic[self.out_classes[i]].extend(temp_labels) 
+        return loss, loss_dic, out_dic, label_dic
+    
+    def train(self, batch, label_dic, out_dic, loss_dic, out_print):
+        inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
+        with autocast():
+            outputs_list = self.model(inputs, aux_input_list)
+            loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
+        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
+    
+    def tripletTrain(self, batch, iteration, label_dic, out_dic, loss_dic, out_print):
+        inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
         with autocast():
             outputs_list, intermediate = self.model(inputs, aux_input_list)
-            loss = []
-            for i in range(len(self.out_classes)):
-                loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-                loss_dic[self.out_classes[i]].append(loss[i].item())
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-                temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-                label_dic[self.out_classes[i]].extend(temp_labels) 
+            loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
 
         tri_loss = triplet_loss(intermediate, prediction_id)
         out_print += f"Triplet Loss: {tri_loss.item():.2f}, "
@@ -223,13 +220,11 @@ class trainer:
 
     def train_metrics(self, all_labels, all_outputs, cls):
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
-
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
         loss_1 = float((loss * torch.tensor(all_labels)).mean())
         loss_0 = float((loss * (1-torch.tensor(all_labels))).mean())
         loss = float(loss.mean())
         auc = float(roc_auc_score(all_labels, all_outputs))
-
         return [f"{cls[:3]} Train", score, auc, loss, loss_1, loss_0, recall, precision]
 
     def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):

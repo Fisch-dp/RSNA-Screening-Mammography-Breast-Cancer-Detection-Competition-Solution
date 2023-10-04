@@ -5,7 +5,7 @@ from config import *
 from utils import *
 #from CrossAttention import *
 import copy
-import CrossAttention
+import CrossAttention1
 class Model(nn.Module):
     def __init__(self, cfg):
         super(Model, self).__init__()
@@ -25,7 +25,7 @@ class Model(nn.Module):
                 padding=self.model.conv_stem.padding,
                 bias=self.model.conv_stem.bias,
             )
-        self.CrossAttention = CrossAttention(query_dim=1280)
+        self.CrossAttention = CrossAttention1(query_dim=1280)
         self.classifier = nn.Linear(in_features=1280 + len(cfg.aux_input), out_features=1, bias=True)
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + len(cfg.aux_input) + 1, out_features=1, bias=True)

@@ -112,13 +112,15 @@ def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
 
 
 def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
-
+    bsize = cfg.val_batch_size
+    if batch_sampler is not None:
+        bsize = 1
     val_dataloader = DataLoader(
         val_dataset,
         sampler=sampler,
         batch_sampler=batch_sampler,
         shuffle=False,
-        batch_size=cfg.val_batch_size,
+        batch_size=bsize,
         num_workers=cfg.num_workers,
         pin_memory=False,
         collate_fn=None,

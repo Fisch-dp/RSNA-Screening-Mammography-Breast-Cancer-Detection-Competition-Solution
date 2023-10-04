@@ -258,7 +258,8 @@ class trainer:
             self.cfg.invert_difficult = 0.0
             dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
             df = self.train_df.copy()
-        dataloader = get_val_dataloader(dataset, cfg, sampler=torch.utils.data.SequentialSampler(dataset))
+        if self.mode == "multi": dataloader = get_val_dataloader(dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
+        else: dataloader = get_val_dataloader(dataset, cfg, sampler=torch.utils.data.SequentialSampler(dataset))
 
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)

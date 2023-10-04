@@ -111,11 +111,12 @@ def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
     return train_dataloader
 
 
-def get_val_dataloader(val_dataset, cfg, sampler=None):
+def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
 
     val_dataloader = DataLoader(
         val_dataset,
         sampler=sampler,
+        batch_sampler=batch_sampler,
         shuffle=False,
         batch_size=cfg.val_batch_size,
         num_workers=cfg.num_workers,

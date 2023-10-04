@@ -158,6 +158,8 @@ class trainer:
             batch = next(tr_it)
             if self.mode == "triplet":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
+            elif self.mode == "multi":   
+                loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
             else:   
                 loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
             
@@ -202,6 +204,13 @@ class trainer:
         inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
         with autocast():
             outputs_list = self.model(inputs, aux_input_list)
+            loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
+        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
+    
+    def MultiTrain(self, batch, label_dic, out_dic, loss_dic, out_print):
+        inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
+        with autocast():
+            outputs_list = self.model(inputs, aux_input_list, prediction_id)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     

@@ -66,14 +66,6 @@ class trainer:
         print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
         self.model = model.to(cfg.device)
-        if cfg.weights is not None:
-            self.model.load_state_dict(
-                torch.load(cfg.weights)[
-                    "model"
-                ]
-            )
-            print(f"weights from: {cfg.weights} are loaded.")
-
 
         if cfg.optimizer == "AdamW": self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
         elif cfg.optimizer == "Adam": self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)

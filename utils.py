@@ -56,19 +56,31 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __init__(self, df, batch_size):
         self.batch_size = batch_size
         self.df = df
-
         self.index = []
-        batch = []
-        for id in self.df['prediction_id'].unique():
-            item = list(self.df[self.df['prediction_id'] == id].index)
-            if len(item) + len(batch) >= self.batch_size:
-                self.index.append(batch)
-                batch = []
-                batch.extend(item)
-            else:
-                batch.extend(item)
-        if len(batch) > 0:
-            self.index.append(batch)
+        i = 0
+        final_i = (i + batch_size - 1)
+        while final_i < len(self.df):
+            if self.df[final_i]['prediction_id'] == self.df[final_i+1]['prediction_id']:
+                while self.df[final_i]['prediction_id'] == self.df[final_i-1]['prediction_id']:
+                    i -= 1
+            self.index.append(list(range(i, final_i+1)))
+            i = final_i+1
+            final_i += (i + batch_size - 1)
+        if final_i >= len(self.df) and i < len(self.df):
+            self.index.append(list(range(i, len(self.df))))
+
+        # self.index = []
+        # batch = []
+        # for id in self.df['prediction_id'].unique():
+        #     item = list(self.df[self.df['prediction_id'] == id].index)
+        #     if len(item) + len(batch) >= self.batch_size:
+        #         self.index.append(batch)
+        #         batch = []
+        #         batch.extend(item)
+        #     else:
+        #         batch.extend(item)
+        # if len(batch) > 0:
+        #     self.index.append(batch)
 
     def __iter__(self):
         for i in range(len(self.index)):

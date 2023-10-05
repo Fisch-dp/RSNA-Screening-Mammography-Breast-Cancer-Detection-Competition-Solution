@@ -46,6 +46,9 @@ class trainer:
 
         self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)
         self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
+        if self.mode == "multi":
+            self.val_df.sort_values(by=['prediction_id'], inplace=True)
+            self.train_df.sort_values(by=['prediction_id'], inplace=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
         if self.mode == "multi":

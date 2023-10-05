@@ -51,10 +51,16 @@ class trainer:
             self.train_df.sort_values(by=['prediction_id'], inplace=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
+        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
+        self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
         if self.mode == "multi":
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
+            self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
+            self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size))
         else: 
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None)
+            self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
+            self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg)
         
         print("train: ", len(self.train_df), " val: ", len(self.val_df))
         print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
@@ -253,17 +259,8 @@ class trainer:
         else: model = self.model
         model.eval()
         torch.set_grad_enabled(False)
-        
-        if train == "Val":
-            dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-            df = self.val_df.copy()
-        elif train == "Train":
-            self.cfg.invert_difficult = 0.0
-            dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
-            df = self.train_df.copy()
-        if self.mode == "multi": dataloader = get_val_dataloader(dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
-        else: dataloader = get_val_dataloader(dataset, cfg, sampler=torch.utils.data.SequentialSampler(dataset))
-
+        if train == "Train": dataloader = self.val_for_train_dataloader
+        elif train == "Val": dataloader = self.val_dataloader
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)
 

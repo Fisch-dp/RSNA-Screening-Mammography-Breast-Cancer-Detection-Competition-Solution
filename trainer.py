@@ -251,8 +251,12 @@ class trainer:
         else: model = self.model
         model.eval()
         torch.set_grad_enabled(False)
-        if train == "Train": dataloader = self.val_for_train_dataloader
-        elif train == "Val": dataloader = self.val_dataloader
+        if train == "Train": 
+            dataloader = self.val_for_train_dataloader
+            df = self.train_df.copy()
+        elif train == "Val": 
+            dataloader = self.val_dataloader
+            df = self.val_df.copy()
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)
 

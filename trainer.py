@@ -212,6 +212,9 @@ class trainer:
         inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_id)
+            df = pd.DataFrame({"prediction_id": prediction_id,
+                               "label": labels_list})
+            labels_list = df.groupby(['prediction_id']).agg({"label": "max"})
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     
@@ -257,11 +260,15 @@ class trainer:
         elif train == "Val": 
             dataloader = self.val_dataloader
             df = self.val_df.copy()
+        if self.mode == "multi":
+            df = df["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]
+            df = df.groupby(['prediction_id']).max()
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)
 
         out_dic = {f'{i}': [] for i in self.out_classes}
         all_image_ids = []
+        all_prediction_ids = []
         
         for i, _ in enumerate(progress_bar):
             if self.cfg.test_iter is not None:#Testing
@@ -272,20 +279,27 @@ class trainer:
             inputs = batch["image"].float().to(self.cfg.device)
             aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
             all_image_ids.extend(batch["image_id"])
+            all_prediction_ids.extend(batch["prediction_id"])
 
             #Evaluation
             if self.mode == "multi": outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
             else: outputs_list = model(inputs, aux_input_list)
             if self.cfg.tta:
-                outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list))]
-
+                if self.mode == "multi": 
+                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
+                else: 
+                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list))]
+ 
             #Saving Data
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:#Testing
-            df = df[df["image_id"].isin(all_image_ids)]
+            if self.mode == "multi":
+                df = df[df["image_id"].isin(all_image_ids)]
+            else:
+                df = df[df["prediction_id"].isin(all_prediction_ids)]
 
         #Save Data to DF
         for i in range(len(self.out_classes)):
@@ -313,8 +327,15 @@ class trainer:
         return BINSCORE, LOSS, data_lib
     
     def eval_metrics(self, df, cls, by="prediction_id"):
-        all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
-        all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
+        if self.mode == "multi":
+            all_labels = np.array(df[f"{cls}"])
+            all_outputs = np.array(df[f"{cls}_outputs"])
+            bin_score, bin_recall, bin_precision = pfbeta(all_labels, all_outputs, 1.0)
+            threshold = -0.01
+            selectedp = -0.01
+        else:
+            all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
+            all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
 
         score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
         loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")

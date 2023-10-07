@@ -202,9 +202,9 @@ class trainer:
         return loss, loss_dic, out_dic, label_dic
     
     def train(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, _ = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_ids = self.read_data(batch)
         with autocast():
-            outputs_list = self.model(inputs, aux_input_list)
+            outputs_list = self.model(inputs, aux_input_list, prediction_ids)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
 

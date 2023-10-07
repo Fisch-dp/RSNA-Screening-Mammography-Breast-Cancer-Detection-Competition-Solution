@@ -282,14 +282,10 @@ class trainer:
             all_prediction_ids.extend(batch["prediction_id"])
 
             #Evaluation
-            if self.mode == "multi": outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
-            else: outputs_list = model(inputs, aux_input_list)
+            outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
             if self.cfg.tta:
-                if self.mode == "multi": 
-                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
-                else: 
-                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list))]
- 
+                outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
+
             #Saving Data
             for i in range(len(self.out_classes)):
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])

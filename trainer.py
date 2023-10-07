@@ -293,9 +293,9 @@ class trainer:
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:#Testing
             if self.mode == "multi":
-                df = df[df["image_id"].isin(all_image_ids)]
-            else:
                 df = df[df["prediction_id"].isin(all_prediction_ids)]
+            else:
+                df = df[df["image_id"].isin(all_image_ids)]
 
         #Save Data to DF
         for i in range(len(self.out_classes)):

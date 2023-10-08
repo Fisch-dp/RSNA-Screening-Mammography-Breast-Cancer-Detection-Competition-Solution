@@ -264,7 +264,7 @@ class trainer:
             dataloader = self.val_dataloader
             df = self.val_df.copy()
         if self.mode == "multi":
-            df = df["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]
+            df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
             df = df.groupby(['prediction_id']).max()
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)

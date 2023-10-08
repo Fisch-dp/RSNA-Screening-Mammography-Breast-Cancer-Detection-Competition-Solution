@@ -63,7 +63,7 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
             if self.df.iloc[final_i]['prediction_id'] == self.df.iloc[final_i+1]['prediction_id']:
                 while self.df.iloc[final_i]['prediction_id'] == self.df.iloc[final_i-1]['prediction_id']:
                     final_i -= 1
-            self.index.append(list(range(i, final_i+1)))
+            self.index.append(list(range(i, final_i)))
             i = final_i+1
             final_i = (i + batch_size - 1)
         if final_i >= len(self.df) and i < len(self.df):

@@ -306,8 +306,8 @@ class trainer:
             
         return df
 
-    def run_eval(self, epoch, train="Val"):
-        df = self.predict(train)
+    def run_eval(self, epoch, train="Val", best=False):
+        df = self.predict(train, best=best)
         table = PrettyTable(["Method", "F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"])
         for cls in self.out_classes:
             for k in self.cfg.evaluation_by:

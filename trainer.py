@@ -209,12 +209,15 @@ class trainer:
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
 
     def MultiTrain(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_id_list = self.read_data(batch)
+        lists_of_labels = [[], []]
+        for prediction_id in pd.unique(prediction_id_list):
+            indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
+            for i, cls in enumerate(self.out_classes):
+                lists_of_labels[i].append(labels_list[cls][indices].argmax())
+        labels_list = [labels_list[i][lists_of_labels[i]] for i in range(len(self.out_classes))]
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_id)
-            df = pd.DataFrame({"prediction_id": prediction_id,
-                               "label": labels_list})
-            labels_list = df.groupby(['prediction_id']).agg({"label": "max"})
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     

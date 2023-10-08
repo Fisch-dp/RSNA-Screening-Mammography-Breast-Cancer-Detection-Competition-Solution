@@ -217,7 +217,7 @@ class trainer:
                 lists_of_labels[i].append(labels_list[i][indices].argmax())
         labels_list = [torch.index_select(labels_list[i], 0, torch.LongTensor(lists_of_labels[i]).to(cfg.device)) for i in range(len(self.out_classes))]
         with autocast():
-            outputs_list = self.model(inputs, aux_input_list, prediction_id)
+            outputs_list = self.model(inputs, aux_input_list, prediction_id_list)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     

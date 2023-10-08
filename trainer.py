@@ -214,7 +214,7 @@ class trainer:
         for prediction_id in pd.unique(prediction_id_list):
             indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
             for i, cls in enumerate(self.out_classes):
-                lists_of_labels[i].append(labels_list[cls][indices].argmax())
+                lists_of_labels[i].append(labels_list[i][indices].argmax())
         labels_list = [labels_list[i][lists_of_labels[i]] for i in range(len(self.out_classes))]
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_id)

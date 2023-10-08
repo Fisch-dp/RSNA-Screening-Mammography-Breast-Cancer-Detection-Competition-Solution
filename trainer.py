@@ -265,7 +265,7 @@ class trainer:
             df = self.val_df.copy()
         if self.mode == "multi":
             df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
-            df = df.groupby(['prediction_id']).max().reset_index(inplace=True)
+            df = df.groupby(['prediction_id'], as_index=False).max()
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)
 
@@ -294,7 +294,6 @@ class trainer:
                 out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
-        all_prediction_ids = [k.item() for k in all_prediction_ids]
         if self.cfg.test_iter is not None:#Testing
             if self.mode == "multi":
                 df = df[df["prediction_id"].isin(all_prediction_ids)]

@@ -44,7 +44,7 @@ class CustomDataset(Dataset):
         data = read(sample, self.aug, self.cfg, self.Train)
         if self.Train and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
-                mask = self.df.query(f'cancer == 1 & view == {sample.view}')
+                mask = self.df.query(f"cancer == 1 & view == {sample['view']}")
                 sample = self.df.iloc[np.random.choice(mask.index)]
                 supp_data = read(sample, self.aug, self.cfg, self.Train)
                 if self.cfg.mixFunction == "simple":

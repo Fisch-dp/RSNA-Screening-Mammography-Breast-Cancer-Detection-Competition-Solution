@@ -58,7 +58,6 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __init__(self, df, batch_size):
         self.batch_size = batch_size
         self.df = df
-        print(df[60:70])
         self.index = []
         i = 0
         final_i = (i + batch_size)

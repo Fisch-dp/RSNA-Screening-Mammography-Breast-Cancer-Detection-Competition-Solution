@@ -24,14 +24,12 @@ class CustomDataset(Dataset):
         df,
         cfg,
         Train,
-        mixFunction = "none"
     ):
         super().__init__()
         self.cfg = cfg
         self.df = df.reset_index(drop=True)
         self.epoch_len = self.df.shape[0]
         self.Train = Train
-        self.mixFunction = cfg.mixFunction
         self.aug = Compose([
             LoadImaged(keys="image", image_only=True),
             EnsureChannelFirstd(keys="image"),
@@ -44,20 +42,20 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.df.iloc[idx]
         data = read(sample, self.aug, self.cfg, self.Train)
-        if self.Train and random.random() < cfg.invert_difficult:
+        if self.Train and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
-                if self.mixFunction == "none":
+                if self.cfg.mixFunction == "none":
                     data['cancer'] = np.ones_like(data['cancer']) * self.cfg.valueForInvert
                     data['invasive'] = np.ones_like(data['invasive']) * random.randint(0,1)
                 else:
                     mask = self.df.query(f'cancer == 1')
                     sample = self.df.iloc[np.random.choice(mask.index)]
                     supp_data = read(sample, self.aug, self.cfg, self.Train)
-                    if self.mixFunction == "simple":
+                    if self.cfg.mixFunction == "simple":
                         data = simple_invert(data, supp_data, self.cfg)
-                    elif self.mixFunction == "Mixup":
+                    elif self.cfg.mixFunction == "Mixup":
                         data = Mixup(data, supp_data, force_label = self.cfg.force_label)
-                    elif self.mixFunction == "CutMix":
+                    elif self.cfg.mixFunction == "CutMix":
                         data = CutMix(data, supp_data, force_label = self.cfg.force_label)
                     
         return data

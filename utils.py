@@ -275,7 +275,7 @@ def color_map(data, cmap):
     
     return cs[data]
 
-def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction_id"):
+def get_PR_curve(df_list, best_metric, mode, df_names=["Train", "Val"], by="prediction_id"):
     fig, axes = plt.subplots(len(df_list), max(len(cfg.out_classes),2), figsize=(10, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
@@ -283,18 +283,23 @@ def get_PR_curve(df_list, best_metric, df_names=["Train", "Val"], by="prediction
             all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
             site1_labels = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
             site2_labels = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
-            selectedp = best_metric[f"Result/{cls.capitalize()[:3]} {df_names[i]} SelectedP"]
-            if selectedp==100:
-                all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
-                site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
-                site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
-            else:
-                def gem(x):
-                    return np.power(np.mean(x.pow(selectedp)), 1.0/selectedp)
-                all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
-                site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
-                site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
-            
+            if mode != "multi":
+                selectedp = best_metric[f"Result/{cls.capitalize()[:3]} {df_names[i]} SelectedP"]
+                if selectedp==100:
+                    all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+                    site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+                    site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": "max"})[f"{cls}_outputs"])
+                else:
+                    def gem(x):
+                        return np.power(np.mean(x.pow(selectedp)), 1.0/selectedp)
+                    all_outputs = np.array(df.groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+                    site1_outputs = np.array(df[df["site_id"]==0].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+                    site2_outputs = np.array(df[df["site_id"]==1].groupby([by]).agg({f"{cls}_outputs": gem})[f"{cls}_outputs"])
+            else: 
+                all_outputs = np.array(df[f"{cls}_outputs"])
+                site1_outputs = np.array(df[df["site_id"]==0][f"{cls}_outputs"])
+                site2_outputs = np.array(df[df["site_id"]==1][f"{cls}_outputs"])
+
             precision, recall, thresholds = metrics.precision_recall_curve(all_labels, all_outputs)
             display = metrics.PrecisionRecallDisplay(recall=recall, precision=precision)
             display.plot(ax=axes[i,j], label = "All")

@@ -61,13 +61,15 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
         self.index = []
         index = []
         for p_id in np.random.permutation(pd.unique(self.df['prediction_id'])):
-            i = self.df[self.df['prediction_id'] == p_id].index.tolist()
+            i = np.where(self.df['prediction_id'].values == p_id)[0]
             if len(index) + len(i) >= batch_size:
                 self.index.append(index)
                 index = []
                 index.extend(i)
             else:
                 index.extend(i)
+        if len(index) > 0:
+            self.index.append(index)
 
     def __iter__(self):
         for i in range(len(self.index)):

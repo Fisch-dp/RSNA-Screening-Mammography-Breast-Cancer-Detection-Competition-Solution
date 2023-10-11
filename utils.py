@@ -27,6 +27,8 @@ import seaborn as sns
 from sklearn import metrics
 from matplotlib.collections import LineCollection
 from sklearn.metrics import PrecisionRecallDisplay
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 import albumentations as A
 from albumentations import *
@@ -58,14 +60,14 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
         self.df = df
         self.index = []
         i = 0
-        final_i = (i + batch_size - 1)
+        final_i = (i + batch_size)
         while final_i < len(self.df):
             if self.df.iloc[final_i]['prediction_id'] == self.df.iloc[final_i+1]['prediction_id']:
                 while self.df.iloc[final_i]['prediction_id'] == self.df.iloc[final_i-1]['prediction_id']:
                     final_i -= 1
             self.index.append(list(range(i, final_i)))
-            i = final_i+1
-            final_i = (i + batch_size - 1)
+            i = final_i
+            final_i = (i + batch_size)
         if final_i >= len(self.df) and i < len(self.df):
             self.index.append(list(range(i, len(self.df))))
 
@@ -416,3 +418,33 @@ def rand_bbox(size, lam):
     bby2 = np.clip(cy + cut_h // 2, 0, H)
 
     return bbx1, bby1, bbx2, bby2
+
+def func():
+    pca = PCA(n_components=3)
+    newX = pca.fit_transform(image)
+    
+    fig = plt.figure()
+#     ax = fig.add_subplot(projection='3d')
+#     for label,(i,j,k) in enumerate(newX):
+#         if int(batch['label'][label])==0:
+#             m = 'o'
+#             co = 'b'
+#         elif int(batch['label'][label])==1:
+#             m = '^'
+#             co = 'r'
+#         ax.scatter(i,j,k,marker=m, c=co)
+#     print (pca.explained_variance_ratio_)
+
+    tsne = TSNE(n_components=3, learning_rate='auto',init='random', perplexity=3)
+    X_embedded = tsne.fit_transform(image)
+    ax = fig.add_subplot(projection='3d')
+    for label,(i,j,k) in enumerate(X_embedded):
+        if int(batch['label'][label])==0:
+            m = 'o'
+            co = 'b'
+        elif int(batch['label'][label])==1:
+            m = '^'
+            co = 'r'
+        ax.scatter(i,j,k,marker=m, c=co)
+    plt.show()
+    print (tsne.kl_divergence_)

@@ -47,6 +47,7 @@ class CustomDataset(Dataset):
         if self.Train and random.random() < cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
                 if self.mixFunction == "none":
+                    print("None")
                     data['cancer'] = np.ones_like(data['cancer']) * self.cfg.valueForInvert
                     data['invasive'] = np.ones_like(data['invasive']) * random.randint(0,1)
                 else:

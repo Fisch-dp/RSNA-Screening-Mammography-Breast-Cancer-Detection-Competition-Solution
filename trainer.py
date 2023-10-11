@@ -20,14 +20,12 @@ class trainer:
     def __init__(self, 
                  cfg,
                  df,
-                 df_y = cfg.df_y,
-                 model = Model(cfg),
+                 model,
                  scaler = GradScaler(),
                  loss_calculation = torch.mean,
                  loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
-                 fold = 0,
                  mode = "single",# "triplet", "crossAttention", "multi"
                  ):
         
@@ -37,15 +35,14 @@ class trainer:
 
         self.df = apply_StratifiedGroupKFold(
                     X=df,
-                    y=df[df_y].values,
+                    y=df[cfg.df_y].values,
                     groups=df["patient_id"].values,
                     n_splits=cfg.num_folds,
                     random_state=cfg.seed)
-        self.fold = fold
         self.mode = mode
 
-        self.val_df = self.df[self.df["fold"] == self.fold].reset_index(drop=True)
-        self.train_df = self.df[self.df["fold"] != self.fold].reset_index(drop=True)
+        self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
+        self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
 
         self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
         self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)

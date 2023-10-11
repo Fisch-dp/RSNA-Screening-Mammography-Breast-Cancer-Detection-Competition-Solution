@@ -46,16 +46,20 @@ class CustomDataset(Dataset):
         data = read(sample, self.aug, self.cfg, self.Train)
         if self.Train and random.random() < cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
-                mask = self.df.query(f'cancer == 1')
-                sample = self.df.iloc[np.random.choice(mask.index)]
-                supp_data = read(sample, self.aug, self.cfg, self.Train)
-                if self.mixFunction == "simple":
-                    data = simple_invert(data, supp_data, self.cfg)
-                elif self.mixFunction == "Mixup":
-                    data = Mixup(data, supp_data, force_label = self.cfg.force_label)
-                elif self.mixFunction == "CutMix":
-                    data = CutMix(data, supp_data, force_label = self.cfg.force_label)
-                
+                if self.mixFunction == "none":
+                    data['cancer'] = np.ones_like(data['cancer']) * self.cfg.valueForInvert
+                    data['invasive'] = np.ones_like(data['invasive']) * random.randint(0,1)
+                else:
+                    mask = self.df.query(f'cancer == 1')
+                    sample = self.df.iloc[np.random.choice(mask.index)]
+                    supp_data = read(sample, self.aug, self.cfg, self.Train)
+                    if self.mixFunction == "simple":
+                        data = simple_invert(data, supp_data, self.cfg)
+                    elif self.mixFunction == "Mixup":
+                        data = Mixup(data, supp_data, force_label = self.cfg.force_label)
+                    elif self.mixFunction == "CutMix":
+                        data = CutMix(data, supp_data, force_label = self.cfg.force_label)
+                    
         return data
 
     def __len__(self):

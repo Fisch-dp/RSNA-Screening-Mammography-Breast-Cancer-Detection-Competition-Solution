@@ -24,14 +24,14 @@ class CustomDataset(Dataset):
         df,
         cfg,
         Train,
-        mixFunction = cfg.mixFunction
+        mixFunction = "none"
     ):
         super().__init__()
         self.cfg = cfg
         self.df = df.reset_index(drop=True)
         self.epoch_len = self.df.shape[0]
         self.Train = Train
-        self.mixFunction = mixFunction
+        self.mixFunction = cfg.mixFunction
         self.aug = Compose([
             LoadImaged(keys="image", image_only=True),
             EnsureChannelFirstd(keys="image"),
@@ -47,7 +47,6 @@ class CustomDataset(Dataset):
         if self.Train and random.random() < cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
                 if self.mixFunction == "none":
-                    print("None")
                     data['cancer'] = np.ones_like(data['cancer']) * self.cfg.valueForInvert
                     data['invasive'] = np.ones_like(data['invasive']) * random.randint(0,1)
                 else:

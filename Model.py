@@ -34,9 +34,11 @@ class Model(nn.Module):
         self.model.classifier = nn.Identity()
         self.auxclassifier1 = nn.Linear(in_features=1280 + 5 + 1, out_features=1, bias=True)
 
-    def forward(self, x, age, implant, view, site, machine):
+    def forward(self, x, aux_input, prediction_id):
         x = self.model(x)
-        x = torch.cat([x, implant.view(-1,1), age.view(-1,1), view.view(-1,1), site.view(-1,1), machine.view(-1,1)], axis=1)
+        x = [x]
+        for i in aux_input: x.append(i.view(-1,1))
+        x = torch.cat(x, axis=1)
         cancer = self.classifier(x)
         x = torch.cat([x, cancer], axis=1)
         invasive = self.auxclassifier1(x)

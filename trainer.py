@@ -293,6 +293,8 @@ class trainer:
 
             #Evaluation
             outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
+            if self.mode == "multiScale":
+                outputs_list = [outputs_list[j][-1] for j in range(len(outputs_list))]
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
 

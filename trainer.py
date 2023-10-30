@@ -155,6 +155,8 @@ class trainer:
                 loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
             elif self.mode == "multi":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
+            elif self.mode == "multiScale":   
+                loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
             else:   
                 loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
             
@@ -200,6 +202,17 @@ class trainer:
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_ids)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
+        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
+
+    def multiScaleTrain(self, batch, label_dic, out_dic, loss_dic, out_print):
+        inputs, labels_list, aux_input_list, prediction_ids = self.read_data(batch)
+        with autocast():
+            outputs_list = self.model(inputs, aux_input_list, prediction_ids)
+            losses = []
+            for i in range(len(outputs_list[0])):
+                indexed_outputs_list = [outputs_list[j][i] for j in range(len(outputs_list))]
+                loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, indexed_outputs_list)
+                losses.extend(loss)
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
 
     def MultiTrain(self, batch, label_dic, out_dic, loss_dic, out_print):

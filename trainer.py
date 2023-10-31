@@ -344,7 +344,14 @@ class trainer:
         return BINSCORE, LOSS, data_lib
     
     def eval_metrics(self, df, cls, by="prediction_id"):
-        if self.mode == "multi" and self.dataset == "RSNA":
+        score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
+        loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
+        loss_1 = float((loss * torch.tensor(all_labels)).mean())
+        loss_0 = float((loss * (1-torch.tensor(all_labels))).mean())
+        loss = float(loss.mean())
+        auc = float(roc_auc_score(all_labels, all_outputs))
+
+        if self.mode == "multi" or self.dataset == "VinDr":
             all_labels = np.array(df[f"{cls}"])
             all_outputs = np.array(df[f"{cls}_outputs"])
             bin_score, bin_recall, bin_precision = pfbeta(all_labels, all_outputs, 1.0)
@@ -353,13 +360,6 @@ class trainer:
         else:
             all_labels = np.array(df.groupby([by]).agg({f"{cls}": "max"})[f"{cls}"])
             all_outputs, bin_score, bin_recall, bin_precision, threshold, selectedp = self.optimize(df, all_labels, cls, by)
-
-        score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
-        loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
-        loss_1 = float((loss * torch.tensor(all_labels)).mean())
-        loss_0 = float((loss * (1-torch.tensor(all_labels))).mean())
-        loss = float(loss.mean())
-        auc = float(roc_auc_score(all_labels, all_outputs))
         return [score, bin_score, auc, loss, loss_1, loss_0, recall, precision, bin_recall, bin_precision, threshold, selectedp]
 
     def eval_write(self, df, epoch, cls, table, train="Val", by="prediction_id", site_id=None):

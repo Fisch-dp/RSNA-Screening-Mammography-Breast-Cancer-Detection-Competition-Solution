@@ -203,7 +203,10 @@ class trainer:
         for i in range(len(self.out_classes)):
             loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
             loss_dic[self.out_classes[i]].append(loss[i].item())
-            out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+            if self.dataset == "RSNA":
+                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+            elif self.dataset == "VinDr":
+                out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
             temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
             temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
             label_dic[self.out_classes[i]].extend(temp_labels) 
@@ -318,7 +321,10 @@ class trainer:
 
             #Saving Data
             for i in range(len(self.out_classes)):
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                if self.dataset == "RSNA":
+                    out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                elif self.dataset == "VinDr":
+                    out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:#Testing

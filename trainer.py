@@ -26,28 +26,29 @@ class trainer:
                  loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
-                 mode = "single",# "triplet", "crossAttention", "multi"
+                 mode = "single",# "triplet", "crossAttention", "multi", "multiScale"
+                 dataset = "RSNA",
                  ):
         
         set_seed(cfg.seed)
         assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
 
-        self.df = apply_StratifiedGroupKFold(
-                    X=df,
-                    y=df[cfg.df_y].values,
-                    groups=df["patient_id"].values,
-                    n_splits=cfg.num_folds,
-                    random_state=cfg.seed)
+        self.df = df
         self.mode = mode
+        self.dataset = dataset
 
         self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
         self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
-
-        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-        self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-        self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
-        if self.mode == "multi":
+        if dataset == "VinDr":
+            self.train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=True)
+            self.val_dataset = VinDrDataset(df=self.val_df, cfg=cfg, Train=False)
+            self.val_for_train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=False)
+        else:
+            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
+            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
+            self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
+        if self.mode == "multi" and self.dataset == "RSNA":
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size))
@@ -125,14 +126,21 @@ class trainer:
         "weight_decay": cfg.weight_decay,
         "grad_clip": cfg.grad_clip,
         }
-        if Lookahead: self.hparams.update({"Lookahead": "True"})
+        if cfg.Lookahead: self.hparams.update({"Lookahead": "True"})
         else: self.hparams.update({"Lookahead": "False"})
+
         if self.aux_input != []: self.hparams.update({"Aux_input": "True"})
         else: self.hparams.update({"Aux_input": "False"})
-        if self.out_classes != ["cancer"]: self.hparams.update({"Auxiliary Training": "True"})
+
+        if self.out_classes != ["cancer"] and dataset == "RSNA": 
+            self.hparams.update({"Auxiliary Training": "True"})
+        elif self.out_classes != ["BIRADS"] and dataset == "VinDr": 
+            self.hparams.update({"Auxiliary Training": "True"})
         else: self.hparams.update({"Auxiliary Training": "False"})
+
         if self.cfg.tta is not None: self.hparams.update({"TTA": "True"})
         else: self.hparams.update({"TTA": "False"})
+
         if self.cfg.Trans is not None: self.hparams.update({"Train_AUG": "True"})
         else: self.hparams.update({"Train_AUG": "False"})
 
@@ -151,11 +159,11 @@ class trainer:
                 if i == self.cfg.test_iter: break
             self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
-            if self.mode == "triplet":   
+            if self.mode == "triplet" and self.dataset == "RSNA":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
-            elif self.mode == "multi":   
+            elif self.mode == "multi" and self.dataset == "RSNA":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
-            elif self.mode == "multiScale":   
+            elif self.mode == "multiScale" and self.dataset == "RSNA":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
             else:   
                 loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
@@ -270,7 +278,7 @@ class trainer:
         elif train == "Val": 
             dataloader = self.val_dataloader
             df = self.val_df.copy()
-        if self.mode == "multi":
+        if self.mode == "multi" and self.dataset == "RSNA":
             df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
             df = df.groupby(['prediction_id'], as_index=False).max()
         progress_bar = tqdm(range(len(dataloader)))
@@ -293,7 +301,7 @@ class trainer:
 
             #Evaluation
             outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
-            if self.mode == "multiScale":
+            if self.mode == "multiScale" and self.dataset == "RSNA":
                 outputs_list = [outputs_list[j][-1] for j in range(len(outputs_list))]
             if self.cfg.tta:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
@@ -304,7 +312,7 @@ class trainer:
 
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None:#Testing
-            if self.mode == "multi":
+            if self.mode == "multi" and self.dataset == "RSNA":
                 df = df[df["prediction_id"].isin(all_prediction_ids)]
             else:
                 df = df[df["image_id"].isin(all_image_ids)]
@@ -323,8 +331,8 @@ class trainer:
                 if k == self.cfg.evalSaveID:
                     if cls == self.out_classes[0]: 
                         BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
-                        for s in [0, 1]:
-                            _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
+                        if self.dataset == "RSNA":
+                            for s in [0, 1]: _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
                     elif cls != self.out_classes[0]:
                         _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         data_lib.update(lib)
@@ -335,7 +343,7 @@ class trainer:
         return BINSCORE, LOSS, data_lib
     
     def eval_metrics(self, df, cls, by="prediction_id"):
-        if self.mode == "multi":
+        if self.mode == "multi" and self.dataset == "RSNA":
             all_labels = np.array(df[f"{cls}"])
             all_outputs = np.array(df[f"{cls}_outputs"])
             bin_score, bin_recall, bin_precision = pfbeta(all_labels, all_outputs, 1.0)

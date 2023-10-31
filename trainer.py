@@ -190,7 +190,10 @@ class trainer:
 
     def read_data(self, batch):
         inputs = batch["image"].float().to(self.cfg.device)
-        labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+        if self.dataset == "RSNA":
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+        elif self.dataset == "VinDr":
+            labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.out_classes]
         aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
         prediction_id = batch["prediction_id"]
         return inputs, labels_list, aux_input_list, prediction_id
@@ -200,7 +203,7 @@ class trainer:
         for i in range(len(self.out_classes)):
             loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
             loss_dic[self.out_classes[i]].append(loss[i].item())
-            out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+            out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
             temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
             temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
             label_dic[self.out_classes[i]].extend(temp_labels) 

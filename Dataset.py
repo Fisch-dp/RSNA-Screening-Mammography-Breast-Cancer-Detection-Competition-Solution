@@ -94,8 +94,8 @@ def readVinDr(sample, aug, cfg, Train):
             "prediction_id": sample.prediction_id,
             "patient_id": sample.patient_id,
             "image_id": sample.image_id,
-            "BIRADS": np.expand_dims(np.array(sample['BIRADS'], dtype=np.float32), axis=0),
-            "density": np.expand_dims(np.array(sample['density'], dtype=np.float32), axis=0),
+            "BIRADS": sample['BIRADS'],
+            "density": sample['density'],
             "view": np.expand_dims(np.array(sample['view'], dtype=np.float32), axis=0),
         }
     data = aug(data)

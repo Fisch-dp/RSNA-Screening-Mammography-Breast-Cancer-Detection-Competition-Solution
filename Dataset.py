@@ -90,7 +90,7 @@ class VinDrDataset(Dataset):
     
 def readVinDr(sample, aug, cfg, Train):
     data = {
-            "image": os.path.join(cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
+            "image": os.path.join(cfg.root_dir, f"{sample.patient_id}/{sample.image_id}.png"),
             "prediction_id": sample.prediction_id,
             "patient_id": sample.patient_id,
             "image_id": sample.image_id,

@@ -28,7 +28,8 @@ class trainer:
                                     ], 
                  mode = "single",# "triplet", "crossAttention", "multi", "multiScale"
                  dataset = "RSNA",
-                 test = False
+                 test = False,
+                 test_df = None,
                  ):
         
         set_seed(cfg.seed)
@@ -36,12 +37,13 @@ class trainer:
         self.cfg = cfg
 
         self.df = df
+        self.test_df = test_df
         self.mode = mode
         self.dataset = dataset
         self.test = test
         if test:
-            self.val_df = self.df
-            self.train_df = self.df
+            self.val_df = self.test_df
+            self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
         else:
             self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
             self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)

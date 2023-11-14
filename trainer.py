@@ -28,6 +28,7 @@ class trainer:
                                     ], 
                  mode = "single",# "triplet", "crossAttention", "multi", "multiScale"
                  dataset = "RSNA",
+                 test = False
                  ):
         
         set_seed(cfg.seed)
@@ -37,9 +38,13 @@ class trainer:
         self.df = df
         self.mode = mode
         self.dataset = dataset
-
-        self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
-        self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+        self.test = test
+        if test:
+            self.val_df = self.df
+            self.train_df = self.df
+        else:
+            self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
+            self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
         if dataset == "VinDr":
             self.train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=True)
             self.val_dataset = VinDrDataset(df=self.val_df, cfg=cfg, Train=False)

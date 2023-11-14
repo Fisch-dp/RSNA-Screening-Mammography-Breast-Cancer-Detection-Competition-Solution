@@ -41,20 +41,23 @@ class trainer:
         self.mode = mode
         self.dataset = dataset
         self.test = test
-        if test:
-            self.val_df = self.test_df
-            self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
-        else:
-            self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
-            self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+        
+        self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
+        self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+
         if dataset == "VinDr":
             self.train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=True)
             self.val_dataset = VinDrDataset(df=self.val_df, cfg=cfg, Train=False)
             self.val_for_train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=False)
-        else:
+        elif dataset == "RSNA" and not test:
             self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
             self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
             self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
+        elif dataset == "RSNA" and test:
+            self.val_df = self.test_df
+            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
+            self.val_dataset = TestDataset(df=self.val_df, cfg=cfg, Train=False)
+            self.val_for_train_dataset = TestDataset(df=self.train_df, cfg=cfg, Train=False)
         if self.mode == "multi" and self.dataset == "RSNA":
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
@@ -298,7 +301,7 @@ class trainer:
         elif train == "Val": 
             dataloader = self.val_dataloader
             df = self.val_df.copy()
-        if self.mode == "multi" and self.dataset == "RSNA":
+        if self.mode == "multi" and self.dataset == "RSNA" and not self.test:
             df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
             df = df.groupby(['prediction_id'], as_index=False).max()
         progress_bar = tqdm(range(len(dataloader)))

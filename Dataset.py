@@ -107,3 +107,55 @@ def readVinDr(sample, aug, cfg, Train):
             data['image'] = Trans2(image=data['image'])['image']
             data['image'] = data['image'].to(torch.float32) / 255
     return data
+
+class TestDataset(Dataset):
+    def __init__(
+        self,
+        df,
+        cfg,
+        Train,
+    ):
+        super().__init__()
+        self.cfg = cfg
+        self.df = df.reset_index(drop=True)
+        self.epoch_len = self.df.shape[0]
+        self.Train = Train
+        self.aug = Compose([
+            LoadImaged(keys="image", image_only=True),
+            EnsureChannelFirstd(keys="image"),
+            RepeatChanneld(keys="image", repeats=3),
+            Transposed(keys="image", indices=(0, 2, 1)),
+            Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
+            Lambdad(keys="image", func=lambda x: x / 255.0),
+        ])
+
+    def __getitem__(self, idx):
+        sample = self.df.iloc[idx]
+        data = readTest(sample, self.aug, self.cfg, self.Train)
+
+        return data
+
+    def __len__(self):
+        return self.epoch_len
+    
+def readTest(sample, aug, cfg, Train):
+    data = {
+            "image": os.path.join(cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),
+            "prediction_id": sample.prediction_id,
+            "patient_id": sample.patient_id,
+            "image_id": sample.image_id,
+            "age": np.expand_dims(np.array(sample.age, dtype=np.float32), axis=0),
+            "implant": np.expand_dims(np.array(sample.implant, dtype=np.float32), axis=0),
+            "machine": np.expand_dims(np.array(sample.machine_id, dtype=np.float32), axis=0),
+            "site": np.expand_dims(np.array(sample.site_id, dtype=np.float32), axis=0),
+            "view": np.expand_dims(np.array(sample['view'], dtype=np.float32), axis=0),
+        }
+    data = aug(data)
+
+    if (cfg.Trans is not None and Train):
+            data['image'] = data['image'].permute(1,2,0) * 255
+            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
+            Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
+            data['image'] = Trans2(image=data['image'])['image']
+            data['image'] = data['image'].to(torch.float32) / 255
+    return data

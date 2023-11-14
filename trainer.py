@@ -62,7 +62,7 @@ class trainer:
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg)
         
-        if self.dataset == "RSNA":
+        if self.dataset == "RSNA" and not self.test:
             print("train: ", len(self.train_df), " val: ", len(self.val_df))
             print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 

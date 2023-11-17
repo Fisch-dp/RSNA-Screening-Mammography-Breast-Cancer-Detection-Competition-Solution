@@ -218,7 +218,7 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
 
     return df_out
 
-def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
+def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None, bins=10):
     fig, axes = plt.subplots(len(df_list), max(len(cfg.out_classes) + 2, 2), figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     based_on = "Label"
@@ -232,8 +232,8 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
             class0 = df[df[f"{cls}"] == 0][f"{cls}_outputs"].tolist()
             class1 = df[df[f"{cls}"] == 1][f"{cls}_outputs"].tolist() 
 
-            axes[i,j].hist(class0, bins=10, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
-            axes[i,j].hist(class1, bins=10, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
+            axes[i,j].hist(class0, bins=bins, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
+            axes[i,j].hist(class1, bins=bins, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
             axes[i,j].legend()
             axes[i,j].set_xlabel("Output Probabilities")
             axes[i,j].set_ylabel("Distribution of samples")
@@ -243,8 +243,8 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None):
             class0 = df.query(f'site_id == {site} & {cfg.out_classes[0]} == 0')[f"{cfg.out_classes[0]}_outputs"].tolist()
             class1 = df.query(f'site_id == {site} & {cfg.out_classes[0]} == 1')[f"{cfg.out_classes[0]}_outputs"].tolist()
 
-            axes[i,k].hist(class0, bins=10, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
-            axes[i,k].hist(class1, bins=10, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
+            axes[i,k].hist(class0, bins=bins, alpha=0.5, label='Negative', weights=np.ones_like(class0)/len(class0))
+            axes[i,k].hist(class1, bins=bins, alpha=0.5, label='Positive', weights=np.ones_like(class1)/len(class1))
             axes[i,k].legend()
             axes[i,k].set_xlabel("Output Probabilities")
             axes[i,k].set_ylabel("Distribution of samples")

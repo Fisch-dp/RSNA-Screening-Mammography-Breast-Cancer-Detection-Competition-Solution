@@ -192,7 +192,7 @@ class trainer:
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
 
-            image_ids.extend(image_id)
+            image_ids.extend([i.item() for i in image_id])
 
         save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])

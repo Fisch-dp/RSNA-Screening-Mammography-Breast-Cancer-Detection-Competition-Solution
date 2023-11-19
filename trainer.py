@@ -205,7 +205,7 @@ class trainer:
             for cls in self.out_classes:
                 df[f"{cls}_outputs"] = out_dic[cls]
                 df[f"{cls}_loss"] = F.binary_cross_entropy(torch.tensor(out_dic[cls]).to(torch.float32), torch.tensor(label_dic[cls]).to(torch.float32),reduction="none")
-            df = pd.concat([df, self.train_df])
+            df = df.merge(self.train_df, on="image_id", how="left")
             df = df.sort_values(by=[f"{self.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
             df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)
         print(table.get_string())

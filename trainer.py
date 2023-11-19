@@ -161,9 +161,9 @@ class trainer:
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 
-        labels_dic = {f'{i}': [] for i in self.out_classes}
-        outs_dic = {f'{i}': [] for i in self.out_classes}
-        losses_dic = {f'{i}': [] for i in self.out_classes}
+        label_dic = {f'{i}': [] for i in self.out_classes}
+        out_dic = {f'{i}': [] for i in self.out_classes}
+        loss_dic = {f'{i}': [] for i in self.out_classes}
         image_ids = []
             
         for i,itr in enumerate(progress_bar):
@@ -191,22 +191,20 @@ class trainer:
             for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
-            for cls in self.out_classes:
-                labels_dic[cls].append(label_dic[cls])
-                outs_dic[cls].append(out_dic[cls])
-                losses_dic[cls].append(loss_dic[cls])
-                image_ids.extend(image_id)
+
+            image_ids.extend(image_id)
+
         save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for cls in self.out_classes: 
-            table = self.train_write(labels_dic[cls], outs_dic[cls], cls, epoch, save_list, table)
+            table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, save_list, table)
         
         #create a new df and then merge with train_df 
         if self.mode == "single" and self.dataset == "RSNA":
             df = pd.DataFrame({"image_id": image_ids})
             for cls in self.out_classes:
-                df[f"{cls}_outputs"] = outs_dic[cls]
-                df[f"{cls}_loss"] = outs_dic[cls]
+                df[f"{cls}_outputs"] = out_dic[cls]
+                df[f"{cls}_loss"] = loss_dic[cls]
             df = df.merge(self.train_df, on="image_id", how="left")
             df = df.sort_values(by=[f"{self.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
             df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)

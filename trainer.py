@@ -161,9 +161,10 @@ class trainer:
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 
-        label_dic = {f'{i}': [] for i in self.out_classes}
-        out_dic = {f'{i}': [] for i in self.out_classes}
-        loss_dic = {f'{i}': [] for i in self.out_classes}
+        labels_dic = {f'{i}': [] for i in self.out_classes}
+        outs_dic = {f'{i}': [] for i in self.out_classes}
+        losses_dic = {f'{i}': [] for i in self.out_classes}
+        image_ids = []
             
         for i,itr in enumerate(progress_bar):
             if self.cfg.test_iter is not None:
@@ -177,7 +178,7 @@ class trainer:
             elif self.mode == "multiScale" and self.dataset == "RSNA":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
             else:   
-                loss, label_dic, out_dic, loss_dic, out_print = self.train(batch, label_dic, out_dic, loss_dic, "")
+                loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             
             self.scaler.scale(loss).backward()
             if self.grad_clip is not None:
@@ -190,13 +191,28 @@ class trainer:
             for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
-
+            for cls in self.out_classes:
+                labels_dic[cls].append(label_dic[cls])
+                outs_dic[cls].append(out_dic[cls])
+                losses_dic[cls].append(loss_dic[cls])
+                image_ids.extend(image_id)
         save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
         table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
         for cls in self.out_classes: 
-            table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, save_list, table)
-            
+            table = self.train_write(labels_dic[cls], outs_dic[cls], cls, epoch, save_list, table)
+        
+        #create a new df and then merge with train_df 
+        if self.mode == "single" and self.dataset == "RSNA":
+            df = pd.DataFrame({"image_id": image_ids})
+            for cls in self.out_classes:
+                df[f"{cls}_outputs"] = outs_dic[cls]
+                df[f"{cls}_loss"] = outs_dic[cls]
+            df = df.merge(self.train_df, on="image_id", how="left")
+            df = df.sort_values(by=[f"{self.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
+            df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)
         print(table.get_string())
+        if self.mode == "single" and self.dataset == "RSNA":
+            print(df[:5])
 
     def read_data(self, batch):
         inputs = batch["image"].float().to(self.cfg.device)
@@ -206,7 +222,8 @@ class trainer:
             labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.out_classes]
         aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
         prediction_id = batch["prediction_id"]
-        return inputs, labels_list, aux_input_list, prediction_id
+        image_id = batch["image_id"]
+        return inputs, labels_list, aux_input_list, prediction_id, image_id
     
     def calculate_save_loss(self, loss_dic, out_dic, label_dic, labels_list, outputs_list):
         loss = []
@@ -223,14 +240,14 @@ class trainer:
         return loss, loss_dic, out_dic, label_dic
     
     def train(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, prediction_ids = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_ids, image_ids = self.read_data(batch)
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_ids)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
-        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
+        return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print, image_ids
 
     def multiScaleTrain(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, prediction_ids = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_ids, image_ids = self.read_data(batch)
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_ids)
             losses = []
@@ -241,7 +258,7 @@ class trainer:
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
 
     def MultiTrain(self, batch, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, prediction_id_list = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_id_list, image_id_lists = self.read_data(batch)
         lists_of_labels = [[], []]
         for prediction_id in pd.unique(prediction_id_list):
             indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
@@ -254,7 +271,7 @@ class trainer:
         return self.loss_calculation(loss), label_dic, out_dic, loss_dic, out_print
     
     def tripletTrain(self, batch, iteration, label_dic, out_dic, loss_dic, out_print):
-        inputs, labels_list, aux_input_list, prediction_id = self.read_data(batch)
+        inputs, labels_list, aux_input_list, prediction_id, image_id = self.read_data(batch)
         with autocast():
             outputs_list, intermediate = self.model(inputs, aux_input_list)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)

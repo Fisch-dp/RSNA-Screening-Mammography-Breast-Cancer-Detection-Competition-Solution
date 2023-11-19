@@ -382,7 +382,7 @@ class trainer:
                         _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k)
         print(table)
         if BINSCORE > 0.1 and self.dataset == "RSNA" and not self.test and train == "Val" and self.cfg.invert_difficult >= 0.2 and epoch/cfg.epochs > 0.3 and cfg.decrease_invert_rate > 0:
-            cfg.invert_difficult *= decrease_invert_rate
+            cfg.invert_difficult *= cfg.decrease_invert_rate
         return BINSCORE, LOSS, data_lib
     
     def eval_metrics(self, df, cls, by="prediction_id"):

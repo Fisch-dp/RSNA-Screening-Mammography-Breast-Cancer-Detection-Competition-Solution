@@ -11,7 +11,7 @@ from prettytable import PrettyTable
 from sklearn import metrics
 
 from utils import *
-from config import *
+from PytorchTensorboard.config import *
 from Model import *
 from Lookahead import *
 from Dataset import *

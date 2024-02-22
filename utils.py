@@ -20,7 +20,7 @@ from sklearn.metrics import roc_auc_score
 import timm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedGroupKFold
-from config import *
+from PytorchTensorboard.config import *
 import warnings
 import seaborn as sns
 from sklearn import metrics
@@ -34,7 +34,7 @@ from albumentations import *
 from albumentations.pytorch.transforms import ToTensorV2
 import numpy as np
 import os
-from config import *
+from PytorchTensorboard.config import *
 from utils import *
 from torch.utils.data import DataLoader, Dataset
 import torch

@@ -2,13 +2,6 @@ import timm
 import torch
 import torch.nn as nn
 from config import *
-from utils import *
-import copy
-import timm 
-import torch
-import torch.nn as nn
-from config import *
-from utils import *
 
 class Model(nn.Module):
     def __init__(self, cfg):

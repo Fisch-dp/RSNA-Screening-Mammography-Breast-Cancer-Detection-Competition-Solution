@@ -5,7 +5,6 @@ import os
 import sys
 import shutil
 import pydicom as dcm
-import dicomsdl
 import numpy as np
 import pandas as pd
 import torch

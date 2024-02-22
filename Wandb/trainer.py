@@ -1,10 +1,10 @@
+import wandb
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 from prettytable import PrettyTable
@@ -102,7 +102,6 @@ class trainer:
 
         self.loss_functions = [i.to(cfg.device) for i in loss_functions]
         self.scaler = scaler
-        self.writer = SummaryWriter(str(cfg.output_dir + f"/fold{cfg.fold}/"))
         self.loss_calculation = loss_calculation
         self.out_classes = cfg.out_classes
         self.aux_input = cfg.aux_input
@@ -169,7 +168,7 @@ class trainer:
         for i,itr in enumerate(progress_bar):
             if self.cfg.test_iter is not None:
                 if i == self.cfg.test_iter: break
-            self.writer.add_scalar('Learning_Rate', self.scheduler.get_last_lr()[-1], epoch * len(self.train_dataloader) + itr)
+            wandb.log({f"Learning_Rate": self.scheduler.get_last_lr()[-1]}, step=epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             if self.mode == "triplet" and self.dataset == "RSNA":   
                 loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
@@ -276,7 +275,7 @@ class trainer:
 
         tri_loss = triplet_loss(intermediate, prediction_id)
         out_print += f"Triplet Loss: {tri_loss.item():.2f}, "
-        self.writer.add_scalar(f"Triplet Loss", tri_loss.item(), iteration)
+        wandb.log({f"Triplet Loss": tri_loss.item()}, step=iteration)
 
         loss = self.loss_calculation(loss) + tri_loss
         return loss, label_dic, out_dic, loss_dic, out_print
@@ -300,7 +299,7 @@ class trainer:
         metrics = self.train_metrics(all_labels, all_outputs, cls)
         cls = cls[:3].capitalize() + "/"
         for i in range(len(save_list)):
-            self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i + 1], epoch)
+            wandb.log({f"{cls}Train {save_list[i]}": metrics[i + 1]}, step=epoch)
             metrics[i+1] = round(metrics[i+1], 3)
         table.add_row(metrics)
         return table
@@ -434,7 +433,7 @@ class trainer:
 
         if train == "Val":
             for i in range(len(save_list[:-2])):
-                self.writer.add_scalar(f"{by}{cls}{train} {save_list[i]}", metrics[i], epoch)
+                wandb.log({f"{by}{cls}{train} {save_list[i]}": metrics[i]}, step=epoch)
         data_lib = {}
         for i in range(len(save_list)):
             data_lib[f"Result/{cls[:3]} {train} {save_list[i]}"] = metrics[i]
@@ -525,4 +524,4 @@ class trainer:
 
         self.best_metric.update(self.best_Loss_metric)
         self.best_metric.update(train_metric)
-        self.writer.add_hparams(self.hparams, self.best_metric)
+        wandb.run.summary(self.best_metric)

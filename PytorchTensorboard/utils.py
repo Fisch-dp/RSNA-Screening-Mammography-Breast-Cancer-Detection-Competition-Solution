@@ -1,3 +1,4 @@
+import wandb
 import argparse
 import gc
 import importlib
@@ -12,7 +13,6 @@ from torch import nn
 import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import json
 import cv2
@@ -20,7 +20,6 @@ from sklearn.metrics import roc_auc_score
 import timm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedGroupKFold
-from config import *
 import warnings
 import seaborn as sns
 from sklearn import metrics
@@ -28,16 +27,9 @@ from matplotlib.collections import LineCollection
 from sklearn.metrics import PrecisionRecallDisplay
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-
 import albumentations as A
 from albumentations import *
 from albumentations.pytorch.transforms import ToTensorV2
-import numpy as np
-import os
-from config import *
-from utils import *
-from torch.utils.data import DataLoader, Dataset
-import torch
 import random
 from monai.transforms import (
     Compose,
@@ -48,7 +40,8 @@ from monai.transforms import (
     Resized,
     Lambdad
 )
-
+sys.path.append('./')
+from config import *
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True

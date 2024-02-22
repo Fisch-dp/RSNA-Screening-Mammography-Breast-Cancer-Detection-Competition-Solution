@@ -11,11 +11,12 @@ from sklearn.metrics import roc_auc_score
 from prettytable import PrettyTable
 from sklearn import metrics
 
-from utils import *
+sys.path.append("./")
 from config import *
 from Model import *
 from Lookahead import *
 from Dataset import *
+from utils import *
 
 class trainer:
     def __init__(self, 

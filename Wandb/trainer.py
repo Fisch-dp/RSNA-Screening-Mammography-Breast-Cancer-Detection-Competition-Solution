@@ -525,4 +525,4 @@ class trainer:
 
         self.best_metric.update(self.best_Loss_metric)
         self.best_metric.update(train_metric)
-        wandb.run.summary(self.best_metric)
+        return self.best_metric

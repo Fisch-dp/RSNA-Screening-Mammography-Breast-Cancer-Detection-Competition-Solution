@@ -16,7 +16,7 @@ from config import *
 from Model import *
 from Lookahead import *
 from Dataset import *
-from Wandb.utils import *
+from utils import *
 
 class trainer:
     def __init__(self, 

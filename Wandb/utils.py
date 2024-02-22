@@ -242,6 +242,7 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None, bin
             axes[i,k].set_ylabel("Distribution of samples")
             axes[i,k].set_title(f"Site{site+1} {df_names[i]} {cfg.out_classes[0].capitalize()}")
     plt.show()
+    wandb.log({"PR_Curve": plt})
     
 def get_corr_matrix(df_list, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 3, figsize=(30, 15))
@@ -253,6 +254,7 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
             sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
     plt.show()
+    wandb.log({"PR_Curve": plt})
 
 def color_map(data, cmap):
     
@@ -343,6 +345,7 @@ def get_PR_curve(df_list, best_metric, mode, df_names=["Train", "Val"], by="pred
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
     
     plt.show()
+    wandb.log({"PR_Curve": plt})
 
 def func():
     pca = PCA(n_components=3)

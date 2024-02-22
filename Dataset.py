@@ -3,7 +3,7 @@ from albumentations import *
 from albumentations.pytorch.transforms import ToTensorV2
 import numpy as np
 import os
-from PytorchTensorboard.config import *
+from config import *
 from utils import *
 from torch.utils.data import DataLoader, Dataset
 import torch

@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import pandas as pd
 import torch
@@ -10,6 +11,7 @@ from sklearn.metrics import roc_auc_score
 from prettytable import PrettyTable
 from sklearn import metrics
 
+sys.path.append("/PytorchTensorboard")
 from utils import *
 from config import *
 from Model import *

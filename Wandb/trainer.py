@@ -277,7 +277,8 @@ class trainer:
 
         tri_loss = triplet_loss(intermediate, prediction_id)
         out_print += f"Triplet Loss: {tri_loss.item():.2f}, "
-        wandb.log({f"Triplet Loss": tri_loss.item()}, step=iteration)
+        wandb.log({f"Triplet Loss": tri_loss.item(),
+                   "batch": iteration})
 
         loss = self.loss_calculation(loss) + tri_loss
         return loss, label_dic, out_dic, loss_dic, out_print
@@ -301,7 +302,8 @@ class trainer:
         metrics = self.train_metrics(all_labels, all_outputs, cls)
         cls = cls[:3].capitalize() + "/"
         for i in range(len(save_list)):
-            wandb.log({f"{cls}Train {save_list[i]}": metrics[i + 1]}, step=epoch)
+            wandb.log({f"{cls}Train {save_list[i]}": metrics[i + 1],
+                       "epoch": epoch})
             metrics[i+1] = round(metrics[i+1], 3)
         table.add_row(metrics)
         return table
@@ -435,7 +437,8 @@ class trainer:
 
         if train == "Val":
             for i in range(len(save_list[:-2])):
-                wandb.log({f"{by}{cls}{train} {save_list[i]}": metrics[i]}, step=epoch)
+                wandb.log({f"{by}{cls}{train} {save_list[i]}": metrics[i],
+                           "epoch": epoch})
         data_lib = {}
         for i in range(len(save_list)):
             data_lib[f"Result/{cls[:3]} {train} {save_list[i]}"] = metrics[i]

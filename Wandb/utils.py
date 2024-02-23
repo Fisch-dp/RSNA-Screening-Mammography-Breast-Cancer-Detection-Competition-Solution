@@ -1,4 +1,5 @@
 import wandb
+from PIL import Image
 import argparse
 import gc
 import importlib
@@ -241,8 +242,9 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None, bin
             axes[i,k].set_xlabel("Output Probabilities")
             axes[i,k].set_ylabel("Distribution of samples")
             axes[i,k].set_title(f"Site{site+1} {df_names[i]} {cfg.out_classes[0].capitalize()}")
+    plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/histogram.png")
     plt.show()
-    wandb.log({"PR_Curve": plt})
+    wandb.log({ f'Images/Based on {based_on}' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/histogram.png")) })
     
 def get_corr_matrix(df_list, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 3, figsize=(30, 15))
@@ -253,8 +255,9 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
         for j in [0,1]:
             sns.heatmap(df[df["site_id"] == i].corr(), ax=axes[i,j+1])
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
+    plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/corr_matrix.png")
     plt.show()
-    wandb.log({"PR_Curve": plt})
+    wandb.log({ f'Images/Confusion Matrix' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/corr_matrix.png")) })
 
 def color_map(data, cmap):
     
@@ -343,9 +346,9 @@ def get_PR_curve(df_list, best_metric, mode, df_names=["Train", "Val"], by="pred
                 np.max([axes[i,j].get_xlim(), axes[i,j].get_ylim()]),  # max of both axes
             ]
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
-    
+    plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
     plt.show()
-    wandb.log({"PR_Curve": plt})
+    wandb.log({ f'Images/PR Curve' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")) })
 
 def func():
     pca = PCA(n_components=3)

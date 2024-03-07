@@ -252,7 +252,6 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
     for i, df in enumerate(df_list):
         df = df.copy()
         df = df.drop(labels=["patient_id", "image_id", "prediction_id"], axis=1)
-        print(df)
         sns.heatmap(df.corr(), ax=axes[i,0])
         axes[i,0].set_title(f"{df_names[i]}")
         for j in [0,1]:

@@ -210,8 +210,8 @@ class trainer:
             df = df.sort_values(by=[f"{self.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
             df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)
         print(table.get_string())
-        if self.mode == "single" and self.dataset == "RSNA":
-            print(df[:5])
+        # if self.mode == "single" and self.dataset == "RSNA":
+        #     print(df[:5])
 
     def read_data(self, batch):
         inputs = batch["image"].float().to(self.cfg.device)

@@ -47,7 +47,9 @@ class CustomDataset(Dataset):
                 sample = self.df.iloc[np.random.choice(mask.index)]
                 supp_data = read(sample, self.aug, self.cfg, self.Train)
                 if self.cfg.mixFunction == "simple":
-                    data = simple_invert(data, supp_data, self.cfg)
+                    if self.cfg.mix_distr_std >0:
+                        mix_std = np.random.normal(0, self.cfg.mix_distr_std)
+                        data = simple_invert(data, supp_data, self.cfg, mix_std)
                 elif self.cfg.mixFunction == "Mixup":
                     data = Mixup(data, supp_data, force_label = self.cfg.force_label)
                 elif self.cfg.mixFunction == "CutMix":
@@ -184,11 +186,12 @@ def read(sample, aug, cfg, Train):
             data['image'] = data['image'].to(torch.float32) / 255
     return data
 
-def simple_invert(data, supp_data, cfg):
+def simple_invert(data, supp_data, cfg, mix_std=0.0):
     for key in ["cancer", "invasive", "implant"]:
         data[key] = np.maximum(data[key], supp_data[key])
+        mix_strength = cfg.posMixStrength * (1 + mix_std)
     for key in ["site", "view", "image"]:
-        data[key] = data[key] * (1 - cfg.posMixStrength) + supp_data[key] * cfg.posMixStrength
+        data[key] = data[key] * (1 - mix_strength) + supp_data[key] * mix_strength
     return data
 
 def Mixup(data, supp_data, alpha=1.0):

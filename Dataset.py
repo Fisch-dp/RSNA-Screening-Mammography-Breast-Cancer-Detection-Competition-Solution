@@ -176,7 +176,7 @@ def read(sample, aug, cfg, Train):
         }
     data = aug(data)
 
-    if (cfg.Trans is not None):
+    if (cfg.Trans is not None and Train):
             data['image'] = data['image'].permute(1,2,0) * 255
             data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
             Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)

@@ -186,10 +186,10 @@ def read(sample, aug, cfg, Train):
 
 def simple_invert(data, supp_data, cfg):
     mix_std = np.random.normal(0, np.maximum(cfg.mix_distr_std, 0))
-    for key in ["implant"]:
+    for key in ["cancer", "invasive", "implant"]:
         data[key] = np.maximum(data[key], supp_data[key])
         mix_strength = cfg.posMixStrength * (1 + mix_std)
-    for key in ["cancer", "invasive", "site", "view", "image"]:
+    for key in ["site", "view", "image"]:
         data[key] = data[key] * (1 - mix_strength) + supp_data[key] * mix_strength
     
     return data

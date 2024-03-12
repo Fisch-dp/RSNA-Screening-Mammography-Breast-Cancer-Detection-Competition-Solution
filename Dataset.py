@@ -44,7 +44,6 @@ class CustomDataset(Dataset):
         if self.Train and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
                 mask = self.df.query(f"cancer == 1 & view == {sample['view']}")
-                print(mask)
                 if len(mask) > 0:
                     sample = self.df.iloc[np.random.choice(mask.index)]
                     supp_data = read(sample, self.aug, self.cfg, self.Train)

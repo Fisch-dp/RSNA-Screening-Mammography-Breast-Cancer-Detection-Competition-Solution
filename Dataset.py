@@ -44,14 +44,16 @@ class CustomDataset(Dataset):
         if self.Train and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
                 mask = self.df.query(f"cancer == 1 & view == {sample['view']}")
-                sample = self.df.iloc[np.random.choice(mask.index)]
-                supp_data = read(sample, self.aug, self.cfg, self.Train)
-                if self.cfg.mixFunction == "simple":
-                    data = simple_invert(data, supp_data, self.cfg)
-                elif self.cfg.mixFunction == "Mixup":
-                    data = Mixup(data, supp_data, force_label = self.cfg.force_label)
-                elif self.cfg.mixFunction == "CutMix":
-                    data = CutMix(data, supp_data, force_label = self.cfg.force_label)
+                print(mask)
+                if len(mask) > 0:
+                    sample = self.df.iloc[np.random.choice(mask.index)]
+                    supp_data = read(sample, self.aug, self.cfg, self.Train)
+                    if self.cfg.mixFunction == "simple":
+                        data = simple_invert(data, supp_data, self.cfg)
+                    elif self.cfg.mixFunction == "Mixup":
+                        data = Mixup(data, supp_data, force_label = self.cfg.force_label)
+                    elif self.cfg.mixFunction == "CutMix":
+                        data = CutMix(data, supp_data, force_label = self.cfg.force_label)
                 
         return data
 

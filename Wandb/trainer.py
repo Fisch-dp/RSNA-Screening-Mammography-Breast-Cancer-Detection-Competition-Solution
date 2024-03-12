@@ -51,11 +51,11 @@ class trainer:
             self.train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=True)
             self.val_dataset = VinDrDataset(df=self.val_df, cfg=cfg, Train=False)
             self.val_for_train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=False)
-        elif dataset == "RSNA" and not test:
+        elif dataset == "RSNA" and not self.test:
             self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
             self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
             self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
-        elif dataset == "RSNA" and test:
+        elif dataset == "RSNA" and self.test:
             self.val_df = self.test_df
             self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
             self.val_dataset = TestDataset(df=self.val_df, cfg=cfg, Train=False)

@@ -108,13 +108,12 @@ class trainer:
             wandb.log({f"Learning_Rate": self.scheduler.get_last_lr()[-1]}, step=epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
             if self.dataset == "RSNA":
-                match self.mode:
-                    case "triplet": 
-                        loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
-                    case "multi":
-                        loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
-                    case "multiScale":
-                        loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
+                if self.mode == "multi":
+                    loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
+                elif self.mode == "multiScale":
+                    loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
+                elif self.mode == "triplet":
+                    loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
             else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             
             self.scaler.scale(loss).backward()
@@ -239,19 +238,17 @@ class trainer:
         return table
         
     def predict(self, train="Val", best=False):
-        match best:
-            case True: model = self.best_model
-            case False: model = self.model
+        if best: model = self.best_model
+        else: model = self.model
         model.eval()
         torch.set_grad_enabled(False)
 
-        match train:
-            case "Train":
-                dataloader = self.val_for_train_dataloader
-                df = self.train_df.copy()
-            case "Val" | "Test":
-                dataloader = self.val_dataloader
-                df = self.val_df.copy()
+        if train == "Val" or train == "Test":
+            dataloader = self.val_dataloader
+            df = self.val_df.copy()
+        elif "Train":
+            dataloader = self.val_for_train_dataloader
+            df = self.train_df.copy()
         if self.mode == "multi" and self.dataset == "RSNA" and not self.test:
             df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
             df = df.groupby(['prediction_id'], as_index=False).max()
@@ -282,9 +279,10 @@ class trainer:
 
             #Saving Data
             for i in range(len(self.cfg.out_classes)):
-                match self.dataset:
-                    case "RSNA": out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                    case "VinDr": out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+                if self.dataset == "RSNA":
+                    out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                elif self.dataset == "VinDr":
+                    out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None: #Testing

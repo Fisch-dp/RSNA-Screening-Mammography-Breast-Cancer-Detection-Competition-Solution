@@ -64,10 +64,12 @@ class CustomDataset(Dataset):
                 if len(mask) > 0:
                     sample = self.df.iloc[np.random.choice(mask.index)]
                     supp_data = read(sample, self.aug, self.cfg, self.Train)
-                    match self.cfg.mixFunction: 
-                        case "simple": data = simple_invert(data, supp_data, self.cfg)
-                        case "Mixup": data = Mixup(data, supp_data, force_label = self.cfg.force_label)
-                        case "CutMix": data = CutMix(data, supp_data, force_label = self.cfg.force_label)
+                    if self.cfg.mixFunction == "simple":
+                        data = simple_invert(data, supp_data, self.cfg)
+                    elif self.cfg.mixFunction == "Mixup":
+                        data = Mixup(data, supp_data, force_label = self.cfg.force_label)
+                    elif self.cfg.mixFunction == "CutMix":
+                        data = CutMix(data, supp_data, force_label = self.cfg.force_label)
         return data
 
     def __len__(self):

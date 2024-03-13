@@ -128,42 +128,48 @@ def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
     return val_dataloader
 
 def get_optimizer(cfg, params):
-    match cfg.optimizer:
-            case "AdamW": optimizer = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-            case "Adam": optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-            case "SGD": optimizer = torch.optim.SGD(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-            case "RAdam": optimizer = torch.optim.RAdam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-            case _: raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
-    if cfg.Lookahead: optimizer = Lookahead(optimizer, k=5, alpha=0.5)
+    if cfg.optimizer == "AdamW":
+        optimizer = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "Adam":
+        optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "SGD":
+        optimizer = torch.optim.SGD(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "RAdam":
+        optimizer = torch.optim.RAdam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    else:
+        raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
     return optimizer
 
 def get_scheduler(cfg, train_loader_len, optimizer):
-    match cfg.scheduler:
-            case "OneCycleLR": scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                                                            optimizer,
-                                                            max_lr=cfg.lr,
-                                                            epochs=cfg.epochs,
-                                                            steps_per_epoch=train_loader_len,
-                                                            pct_start=0.1,
-                                                            anneal_strategy="cos",
-                                                            div_factor=cfg.lr_div,
-                                                            final_div_factor=cfg.lr_final_div,
-                                                        )
-            case "CosineAnnealingLR": scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                                                            optimizer,
-                                                            T_max=cfg.epochs,
-                                                            eta_min=cfg.lr_min,
-                                                        )
-            case "StepLR": scheduler = torch.optim.lr_scheduler.StepLR(
-                                                            optimizer, 
-                                                            step_size=cfg.StepLR_step_size, 
-                                                            gamma=cfg.StepLR_gamma
-                                                        )
-            case _: scheduler = torch.optim.lr_scheduler.StepLR(
-                                                            optimizer, 
-                                                            step_size=10000000, 
-                                                            gamma=0.1
-                                                        )
+    if cfg.scheduler == "OneCycleLR":
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=cfg.lr,
+            epochs=cfg.epochs,
+            steps_per_epoch=train_loader_len,
+            pct_start=0.1,
+            anneal_strategy="cos",
+            div_factor=cfg.lr_div,
+            final_div_factor=cfg.lr_final_div,
+        )
+    elif cfg.scheduler == "CosineAnnealingLR":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=cfg.epochs,
+            eta_min=cfg.lr_min,
+        )
+    elif cfg.scheduler == "StepLR":
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=cfg.StepLR_step_size,
+            gamma=cfg.StepLR_gamma
+        )
+    else:
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=10000000,
+            gamma=0.1
+        )
     return scheduler
 
 def get_hparams(cfg):

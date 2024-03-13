@@ -37,29 +37,26 @@ class trainer:
         set_seed(cfg.seed)
         assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
-
         self.df = df
-        self.test_df = test_df
         self.mode = mode
         self.dataset = dataset
         self.test = test
-        
-        self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
-        self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+        self.train_track_save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
+        self.val_track_save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
 
-        if dataset == "VinDr":
-            self.train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=True)
-            self.val_dataset = VinDrDataset(df=self.val_df, cfg=cfg, Train=False)
-            self.val_for_train_dataset = VinDrDataset(df=self.train_df, cfg=cfg, Train=False)
-        elif dataset == "RSNA" and not self.test:
-            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=True)
-            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train=False)
-            self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
-        elif dataset == "RSNA" and self.test:
-            self.val_df = self.test_df
-            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train=False)
-            self.val_dataset = TestDataset(df=self.val_df, cfg=cfg, Train=False)
-            self.val_for_train_dataset = TestDataset(df=self.train_df, cfg=cfg, Train=False)
+        # Datasets
+        if self.test:
+            self.val_df = test_df
+            self.train_df = self.df
+            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Test", dataset=dataset)
+        else:
+            self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
+            self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Val", dataset=dataset)
+        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=dataset)
+        self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Val", dataset=dataset)
+
+        # Dataloaders
         if self.mode == "multi" and self.dataset == "RSNA":
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
@@ -73,88 +70,25 @@ class trainer:
             print("train: ", len(self.train_df), " val: ", len(self.val_df))
             print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
+        # Model
         self.model = model.to(cfg.device)
-
-        if cfg.optimizer == "AdamW": self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif cfg.optimizer == "Adam": self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif cfg.optimizer == "SGD": self.optimizer = torch.optim.SGD(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        elif cfg.optimizer == "RAdam": self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        else: raise NotImplementedError
-
-        if cfg.Lookahead:
-            self.optimizer = Lookahead(self.optimizer, k=5, alpha=0.5)
-        
-        if cfg.scheduler == "OneCycleLR": self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                                                            self.optimizer,
-                                                            max_lr=cfg.lr,
-                                                            epochs=cfg.epochs,
-                                                            steps_per_epoch=int(len(self.train_dataloader)),
-                                                            pct_start=0.1,
-                                                            anneal_strategy="cos",
-                                                            div_factor=cfg.lr_div,
-                                                            final_div_factor=cfg.lr_final_div,
-                                                        )
-        elif cfg.scheduler == "CosineAnnealingLR": self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                                                                    self.optimizer,
-                                                                    T_max=cfg.epochs,
-                                                                    eta_min=cfg.lr_min,
-                                                                )
-        elif cfg.scheduler == "StepLR": self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=cfg.StepLR_step_size, gamma=cfg.StepLR_gamma)
-        else: self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10000000, gamma=0.1,)
-
+        # Optimizer
+        self.optimizer = get_optimizer(cfg, self.model.parameters())
+        # Scheduler
+        self.scheduler = get_scheduler(cfg, int(len(self.train_dataloader)), self.optimizer)
+        # Hparams
+        self.hparams = get_hparams(cfg)
+        # Train Config
         self.loss_functions = [i.to(cfg.device) for i in loss_functions]
         self.scaler = scaler
         self.loss_calculation = loss_calculation
-        self.out_classes = cfg.out_classes
-        self.aux_input = cfg.aux_input
-        self.grad_clip = cfg.grad_clip
-
         #Saving Best Model Config
         self.best_score = -1.1
         self.best_model = self.model
         self.best_metric = {}
-
         self.best_loss = 100000000.1
         self.best_Loss_model = self.model
         self.best_Loss_metric = {}
-
-        self.hparams = {
-        "img_size": cfg.img_size[0],
-        "img_size_W": cfg.img_size[1],
-        "backbone": f"{cfg.backbone}",
-        "pos_weight": cfg.pos_weight,
-        "in_channels": cfg.in_channels,
-        "drop_rate": cfg.drop_rate,
-        "drop_path_rate": cfg.drop_path_rate,
-        "Augmentation": cfg.Aug,
-        "Batch_size": cfg.batch_size,
-        "Num_Folds": cfg.num_folds,
-        "seed": cfg.seed,
-        "initial LR": cfg.lr,
-        "OneCycleLR_div_factor": cfg.lr_div,
-        "OneCycleLR_final_div_factor": cfg.lr_final_div,
-        "Optimizer": cfg.optimizer,
-        "LR_Scheduler": cfg.scheduler,
-        "weight_decay": cfg.weight_decay,
-        "grad_clip": cfg.grad_clip,
-        }
-        if cfg.Lookahead: self.hparams.update({"Lookahead": "True"})
-        else: self.hparams.update({"Lookahead": "False"})
-
-        if self.aux_input != []: self.hparams.update({"Aux_input": "True"})
-        else: self.hparams.update({"Aux_input": "False"})
-
-        if self.out_classes != ["cancer"] and dataset == "RSNA": 
-            self.hparams.update({"Auxiliary Training": "True"})
-        elif self.out_classes != ["BIRADS"] and dataset == "VinDr": 
-            self.hparams.update({"Auxiliary Training": "True"})
-        else: self.hparams.update({"Auxiliary Training": "False"})
-
-        if self.cfg.tta is not None: self.hparams.update({"TTA": "True"})
-        else: self.hparams.update({"TTA": "False"})
-
-        if self.cfg.Trans is not None: self.hparams.update({"Train_AUG": "True"})
-        else: self.hparams.update({"Train_AUG": "False"})
 
     def run_train(self, epoch):
         self.model.train()
@@ -162,80 +96,76 @@ class trainer:
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 
-        label_dic = {f'{i}': [] for i in self.out_classes}
-        out_dic = {f'{i}': [] for i in self.out_classes}
-        loss_dic = {f'{i}': [] for i in self.out_classes}
+        label_dic = {f'{i}': [] for i in cfg.out_classes}
+        out_dic = {f'{i}': [] for i in cfg.out_classes}
+        loss_dic = {f'{i}': [] for i in cfg.out_classes}
         image_ids = []
             
         for i,itr in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:
-                if i == self.cfg.test_iter: break
+            if self.cfg.test_iter is not None and i == self.cfg.test_iter: 
+                break
+
             wandb.log({f"Learning_Rate": self.scheduler.get_last_lr()[-1]}, step=epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
-            if self.mode == "triplet" and self.dataset == "RSNA":   
-                loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
-            elif self.mode == "multi" and self.dataset == "RSNA":   
-                loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
-            elif self.mode == "multiScale" and self.dataset == "RSNA":   
-                loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
-            else:   
-                loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
+            if self.dataset == "RSNA":
+                match self.mode:
+                    case "triplet": 
+                        loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
+                    case "multi":
+                        loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
+                    case "multiScale":
+                        loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
+            else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             
             self.scaler.scale(loss).backward()
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
+            if self.cfg.grad_clip is not None: torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.grad_clip)
             self.scaler.step(self.optimizer)
             self.scaler.update()
             self.optimizer.zero_grad()
             self.scheduler.step()
             
-            for cls in self.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
+            for cls in self.cfg.out_classes: out_print += f"{cls}_loss: {np.mean(loss_dic[cls]):.2f}, "
             out_print += f"lr: {self.scheduler.get_last_lr()[-1]:.6f}"
             progress_bar.set_description(out_print)
 
             image_ids.extend([i.item() for i in image_id])
 
-        save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
-        table = PrettyTable(["Method", "F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"])
-        for cls in self.out_classes: 
-            table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, save_list, table)
+        table = PrettyTable(["Method"].append(self.train_track_save_list))
+        for cls in self.cfg.out_classes: 
+            table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, self.train_track_save_list, table)
         
         #create a new df and then merge with train_df 
         if self.mode == "single" and self.dataset == "RSNA":
             df = pd.DataFrame({"image_id": image_ids})
-            for cls in self.out_classes:
+            for cls in self.cfg.out_classes:
                 df[f"{cls}_outputs"] = out_dic[cls]
                 df[f"{cls}_loss"] = F.binary_cross_entropy(torch.tensor(out_dic[cls]).to(torch.float32), torch.tensor(label_dic[cls]).to(torch.float32),reduction="none")
             df = df.merge(self.train_df, on="image_id", how="left")
-            df = df.sort_values(by=[f"{self.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
+            df = df.sort_values(by=[f"{self.cfg.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
             df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)
         print(table.get_string())
-        # if self.mode == "single" and self.dataset == "RSNA":
-        #     print(df[:5])
 
     def read_data(self, batch):
         inputs = batch["image"].float().to(self.cfg.device)
         if self.dataset == "RSNA":
-            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.out_classes]
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.out_classes]
         elif self.dataset == "VinDr":
-            labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.out_classes]
-        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.aux_input]
-        prediction_id = batch["prediction_id"]
-        image_id = batch["image_id"]
-        return inputs, labels_list, aux_input_list, prediction_id, image_id
+            labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.cfg.out_classes]
+        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.aux_input]
+        return inputs, labels_list, aux_input_list, batch["prediction_id"], batch["image_id"]
     
     def calculate_save_loss(self, loss_dic, out_dic, label_dic, labels_list, outputs_list):
         loss = []
-        for i in range(len(self.out_classes)):
+        for i in range(len(self.cfg.out_classes)):
             loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-            loss_dic[self.out_classes[i]].append(loss[i].item())
+            loss_dic[self.cfg.out_classes[i]].append(loss[i].item())
             if self.dataset == "RSNA":
-                out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
             elif self.dataset == "VinDr":
-                out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+                out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
             temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
             temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-            label_dic[self.out_classes[i]].extend(temp_labels) 
+            label_dic[self.cfg.out_classes[i]].extend(temp_labels) 
         return loss, loss_dic, out_dic, label_dic
     
     def train(self, batch, label_dic, out_dic, loss_dic, out_print):
@@ -261,9 +191,9 @@ class trainer:
         lists_of_labels = [[], []]
         for prediction_id in pd.unique(prediction_id_list):
             indices = [index for index, element in enumerate(prediction_id_list) if element == prediction_id]
-            for i, cls in enumerate(self.out_classes):
+            for i, cls in enumerate(self.cfg.out_classes):
                 lists_of_labels[i].append(labels_list[i][indices].argmax())
-        labels_list = [torch.index_select(labels_list[i], 0, torch.LongTensor(lists_of_labels[i]).to(cfg.device)) for i in range(len(self.out_classes))]
+        labels_list = [torch.index_select(labels_list[i], 0, torch.LongTensor(lists_of_labels[i]).to(cfg.device)) for i in range(len(self.cfg.out_classes))]
         with autocast():
             outputs_list = self.model(inputs, aux_input_list, prediction_id_list)
             loss, loss_dic, out_dic, label_dic = self.calculate_save_loss(loss_dic, out_dic, label_dic, labels_list, outputs_list)
@@ -309,23 +239,26 @@ class trainer:
         return table
         
     def predict(self, train="Val", best=False):
-        if best: model = self.best_model
-        else: model = self.model
+        match best:
+            case True: model = self.best_model
+            case False: model = self.model
         model.eval()
         torch.set_grad_enabled(False)
-        if train == "Train": 
-            dataloader = self.val_for_train_dataloader
-            df = self.train_df.copy()
-        elif train == "Val": 
-            dataloader = self.val_dataloader
-            df = self.val_df.copy()
+
+        match train:
+            case "Train":
+                dataloader = self.val_for_train_dataloader
+                df = self.train_df.copy()
+            case "Val" | "Test":
+                dataloader = self.val_dataloader
+                df = self.val_df.copy()
         if self.mode == "multi" and self.dataset == "RSNA" and not self.test:
             df = df[["site_id", "prediction_id", "cancer", "biopsy", "invasive", "BIRADS", "implant", "density", "machine_id", "difficult_negative_case"]]
             df = df.groupby(['prediction_id'], as_index=False).max()
         progress_bar = tqdm(range(len(dataloader)))
         tr_it = iter(dataloader)
 
-        out_dic = {f'{i}': [] for i in self.out_classes}
+        out_dic = {f'{i}': [] for i in self.cfg.out_classes}
         all_image_ids = []
         all_prediction_ids = []
         
@@ -336,7 +269,7 @@ class trainer:
             #Loading Data
             batch = next(tr_it)
             inputs = batch["image"].float().to(self.cfg.device)
-            aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.aux_input]
+            aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.cfg.aux_input]
             all_image_ids.extend(batch["image_id"])
             all_prediction_ids.extend(batch["prediction_id"])
 
@@ -348,40 +281,39 @@ class trainer:
                 outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
 
             #Saving Data
-            for i in range(len(self.out_classes)):
-                if self.dataset == "RSNA":
-                    out_dic[self.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                elif self.dataset == "VinDr":
-                    out_dic[self.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+            for i in range(len(self.cfg.out_classes)):
+                match self.dataset:
+                    case "RSNA": out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                    case "VinDr": out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
-        if self.cfg.test_iter is not None:#Testing
+        if self.cfg.test_iter is not None: #Testing
             if self.mode == "multi" and self.dataset == "RSNA":
                 df = df[df["prediction_id"].isin(all_prediction_ids)]
             else:
                 df = df[df["image_id"].isin(all_image_ids)]
 
         #Save Data to DF
-        for i in range(len(self.out_classes)):
-            df[f"{self.out_classes[i]}_outputs"] = out_dic[self.out_classes[i]]
+        for i in range(len(self.cfg.out_classes)):
+            df[f"{self.cfg.out_classes[i]}_outputs"] = out_dic[self.cfg.out_classes[i]]
             
         return df
 
     def run_eval(self, epoch, train="Val", best=False):
         df = self.predict(train, best=best)
         table = PrettyTable(["Method", "F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"])
-        for cls in self.out_classes:
+        for cls in self.cfg.out_classes:
             for k in self.cfg.evaluation_by:
                 if k == self.cfg.evalSaveID:
-                    if cls == self.out_classes[0]: 
+                    if cls == self.cfg.out_classes[0]: 
                         BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         if self.dataset == "RSNA":
                             for s in [0, 1]: _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
-                    elif cls != self.out_classes[0]:
+                    elif cls != self.cfg.out_classes[0]:
                         _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         data_lib.update(lib)
                 else:
-                    if cls == self.out_classes[0]:
+                    if cls == self.cfg.out_classes[0]:
                         _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k)
         print(table)
         if BINSCORE > 0.1 and self.dataset == "RSNA" and not self.test and train == "Val" and self.cfg.invert_difficult >= 0.2 and epoch/cfg.epochs > 0.3 and cfg.decrease_invert_rate > 0:
@@ -417,7 +349,6 @@ class trainer:
         return [score, bin_score, auc, loss, loss_1, loss_0, recall, precision, bin_recall, bin_precision, threshold, selectedp]
 
     def eval_write(self, df, epoch, cls, table, train="Val", by="prediction_id", site_id=None):
-        save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
         method = ""
         if site_id is not None:
             df = df[df["site_id"] == site_id]
@@ -436,12 +367,12 @@ class trainer:
                 cls = cls[:3] + "/"
 
         if train == "Val":
-            for i in range(len(save_list[:-2])):
-                wandb.log({f"{by}{cls}{train} {save_list[i]}": metrics[i],
+            for i in range(len(self.val_track_save_list[:-2])):
+                wandb.log({f"{by}{cls}{train} {self.val_track_save_list[i]}": metrics[i],
                            "epoch": epoch})
         data_lib = {}
-        for i in range(len(save_list)):
-            data_lib[f"Result/{cls[:3]} {train} {save_list[i]}"] = metrics[i]
+        for i in range(len(self.val_track_save_list)):
+            data_lib[f"Result/{cls[:3]} {train} {self.val_track_save_list[i]}"] = metrics[i]
             metrics[i] = round(metrics[i], 3)
         metrics = [method] + metrics
         table.add_row(metrics)

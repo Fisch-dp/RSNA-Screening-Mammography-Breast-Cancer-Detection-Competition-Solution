@@ -44,13 +44,13 @@ class CustomDataset(Dataset):
         sample = self.df.iloc[idx]
         # Read Data
         if self.dataset == "RSNA":
-            data = read(sample, self.cfg) if self.Train else readTest(sample, self.cfg)
+            data = readTest(sample, self.cfg) if self.Train == "Test" else read(sample, self.cfg)
         else:
             data = readVinDr(sample, self.cfg)
         data = self.aug(data)
 
         # Apply Transformation
-        if (cfg.Trans is not None and self.Train):
+        if (self.cfg.Trans is not None and self.Train == "Train"):
             data['image'] = data['image'].permute(1,2,0) * 255
             data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
             Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
@@ -58,7 +58,7 @@ class CustomDataset(Dataset):
             data['image'] = data['image'].to(torch.float32) / 255
         
         # Mixing
-        if self.dataset == "RSNA" and self.Train and random.random() < self.cfg.invert_difficult:
+        if self.dataset == "RSNA" and self.Train == "Train" and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
                 mask = self.df.query(f"cancer == 1 & view == {sample['view']}")
                 if len(mask) > 0:

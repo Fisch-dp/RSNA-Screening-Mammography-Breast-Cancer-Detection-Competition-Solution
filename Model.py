@@ -8,7 +8,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.model = timm.create_model(
         cfg.backbone,
-        pretrained=False,
+        pretrained=cfg.pretrained,
         num_classes=cfg.num_classes,
         drop_rate=cfg.drop_rate,
         drop_path_rate=cfg.drop_path_rate,

@@ -43,10 +43,11 @@ from monai.transforms import (
 )
 sys.path.append('./')
 from config import *
+from Lookahead import Lookahead
+
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-
 class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __init__(self, df, batch_size):
         self.batch_size = batch_size
@@ -126,6 +127,76 @@ def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
 
     return val_dataloader
 
+def get_optimizer(cfg, params):
+    match cfg.optimizer:
+            case "AdamW": optimizer = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+            case "Adam": optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+            case "SGD": optimizer = torch.optim.SGD(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+            case "RAdam": optimizer = torch.optim.RAdam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+            case _: raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
+    if cfg.Lookahead: optimizer = Lookahead(optimizer, k=5, alpha=0.5)
+    return optimizer
+
+def get_scheduler(cfg, train_loader_len, optimizer):
+    match cfg.scheduler:
+            case "OneCycleLR": scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                                                            optimizer,
+                                                            max_lr=cfg.lr,
+                                                            epochs=cfg.epochs,
+                                                            steps_per_epoch=train_loader_len,
+                                                            pct_start=0.1,
+                                                            anneal_strategy="cos",
+                                                            div_factor=cfg.lr_div,
+                                                            final_div_factor=cfg.lr_final_div,
+                                                        )
+            case "CosineAnnealingLR": scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                                                            optimizer,
+                                                            T_max=cfg.epochs,
+                                                            eta_min=cfg.lr_min,
+                                                        )
+            case "StepLR": scheduler = torch.optim.lr_scheduler.StepLR(
+                                                            optimizer, 
+                                                            step_size=cfg.StepLR_step_size, 
+                                                            gamma=cfg.StepLR_gamma
+                                                        )
+            case _: scheduler = torch.optim.lr_scheduler.StepLR(
+                                                            optimizer, 
+                                                            step_size=10000000, 
+                                                            gamma=0.1
+                                                        )
+    return scheduler
+
+def get_hparams(cfg):
+    hparams = {
+        "img_size": cfg.img_size[0],
+        "img_size_W": cfg.img_size[1],
+        "backbone": f"{cfg.backbone}",
+        "pos_weight": cfg.pos_weight,
+        "in_channels": cfg.in_channels,
+        "drop_rate": cfg.drop_rate,
+        "drop_path_rate": cfg.drop_path_rate,
+        "Augmentation": cfg.Aug,
+        "Batch_size": cfg.batch_size,
+        "Num_Folds": cfg.num_folds,
+        "seed": cfg.seed,
+        "initial LR": cfg.lr,
+        "OneCycleLR_div_factor": cfg.lr_div,
+        "OneCycleLR_final_div_factor": cfg.lr_final_div,
+        "Optimizer": cfg.optimizer,
+        "LR_Scheduler": cfg.scheduler,
+        "weight_decay": cfg.weight_decay,
+        "grad_clip": cfg.grad_clip,
+        "Lookahead": str(cfg.Lookahead),
+        "TTA": str(cfg.tta is not None),
+        "Train_AUG": str(cfg.Trans is not None),
+        "Aux_input": str(cfg.aux_input != [])
+    }
+    if cfg.out_classes != ["cancer"] and cfg.dataset == "RSNA": 
+        hparams.update({"Auxiliary Training": "True"})
+    elif cfg.out_classes != ["BIRADS"] and cfg.dataset == "VinDr": 
+        hparams.update({"Auxiliary Training": "True"})
+    else: hparams.update({"Auxiliary Training": "False"})
+    return hparams
 
 def create_checkpoint(model, optimizer, epoch, scheduler=None, scaler=None):
     checkpoint = {

@@ -77,7 +77,7 @@ class trainer:
         # Scheduler
         self.scheduler = get_scheduler(cfg, int(len(self.train_dataloader)), self.optimizer)
         # Hparams
-        self.hparams = get_hparams(cfg)
+        self.hparams = get_hparams(cfg, dataset)
         # Train Config
         self.loss_functions = [i.to(cfg.device) for i in loss_functions]
         self.scaler = scaler

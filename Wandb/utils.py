@@ -172,7 +172,7 @@ def get_scheduler(cfg, train_loader_len, optimizer):
         )
     return scheduler
 
-def get_hparams(cfg):
+def get_hparams(cfg, dataset):
     hparams = {
         "img_size": cfg.img_size[0],
         "img_size_W": cfg.img_size[1],
@@ -197,9 +197,9 @@ def get_hparams(cfg):
         "Train_AUG": str(cfg.Trans is not None),
         "Aux_input": str(cfg.aux_input != [])
     }
-    if cfg.out_classes != ["cancer"] and cfg.dataset == "RSNA": 
+    if cfg.out_classes != ["cancer"] and dataset == "RSNA": 
         hparams.update({"Auxiliary Training": "True"})
-    elif cfg.out_classes != ["BIRADS"] and cfg.dataset == "VinDr": 
+    elif cfg.out_classes != ["BIRADS"] and dataset == "VinDr": 
         hparams.update({"Auxiliary Training": "True"})
     else: hparams.update({"Auxiliary Training": "False"})
     return hparams

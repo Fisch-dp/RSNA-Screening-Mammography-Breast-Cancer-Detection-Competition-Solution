@@ -240,8 +240,6 @@ class trainer:
     def predict(self, train="Val", best=False):
         if best: model = self.best_model
         else: model = self.model
-        model.eval()
-        torch.set_grad_enabled(False)
 
         if train == "Val" or train == "Test":
             dataloader = self.val_dataloader
@@ -258,31 +256,32 @@ class trainer:
         out_dic = {f'{i}': [] for i in self.cfg.out_classes}
         all_image_ids = []
         all_prediction_ids = []
-        
-        for i, _ in enumerate(progress_bar):
-            if self.cfg.test_iter is not None:#Testing
-                if i == self.cfg.test_iter: break
+        model.eval()
+        with torch.no_grad():
+            for i, _ in enumerate(progress_bar):
+                if self.cfg.test_iter is not None:#Testing
+                    if i == self.cfg.test_iter: break
 
-            #Loading Data
-            batch = next(tr_it)
-            inputs = batch["image"].float().to(self.cfg.device)
-            aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.cfg.aux_input]
-            all_image_ids.extend(batch["image_id"])
-            all_prediction_ids.extend(batch["prediction_id"])
+                #Loading Data
+                batch = next(tr_it)
+                inputs = batch["image"].float().to(self.cfg.device)
+                aux_input_list = [batch[item].float().to(self.cfg.device) for item in self.cfg.aux_input]
+                all_image_ids.extend(batch["image_id"])
+                all_prediction_ids.extend(batch["prediction_id"])
 
-            #Evaluation
-            outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
-            if self.mode == "multiScale" and self.dataset == "RSNA":
-                outputs_list = [outputs_list[j][-1] for j in range(len(outputs_list))]
-            if self.cfg.tta:
-                outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
+                #Evaluation
+                outputs_list = model(inputs, aux_input_list, batch["prediction_id"])
+                if self.mode == "multiScale" and self.dataset == "RSNA":
+                    outputs_list = [outputs_list[j][-1] for j in range(len(outputs_list))]
+                if self.cfg.tta:
+                    outputs_list = [(x + y) / 2 for x, y in zip(outputs_list, model(torch.flip(inputs, dims=[3, ])[0], aux_input_list, batch["prediction_id"]))]
 
-            #Saving Data
-            for i in range(len(self.cfg.out_classes)):
-                if self.dataset == "RSNA":
-                    out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-                elif self.dataset == "VinDr":
-                    out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+                #Saving Data
+                for i in range(len(self.cfg.out_classes)):
+                    if self.dataset == "RSNA":
+                        out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+                    elif self.dataset == "VinDr":
+                        out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
 
         all_image_ids = [k.item() for k in all_image_ids]
         if self.cfg.test_iter is not None: #Testing

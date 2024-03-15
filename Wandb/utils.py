@@ -48,6 +48,13 @@ from Lookahead import Lookahead
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
+    torch.use_deterministic_algorithms(False)
+    torch.cuda.manual_seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    random.seed(cfg.seed)
+    np.random.seed(cfg.seed)
+    os.environ['PYTHONHASHSEED'] = str(cfg.seed)
+
 class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __init__(self, df, batch_size):
         self.batch_size = batch_size

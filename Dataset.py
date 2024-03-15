@@ -63,7 +63,8 @@ class CustomDataset(Dataset):
                 mask = self.df.query(f"cancer == 1 & view == {sample['view']}")
                 if len(mask) > 0:
                     sample = self.df.iloc[np.random.choice(mask.index)]
-                    supp_data = read(sample, self.aug, self.cfg, self.Train)
+                    supp_data = read(sample, self.cfg)
+                    supp_data = self.aug(supp_data)
                     if self.cfg.mixFunction == "simple":
                         data = simple_invert(data, supp_data, self.cfg)
                     elif self.cfg.mixFunction == "Mixup":

@@ -114,6 +114,7 @@ class trainer:
                     loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
                 elif self.mode == "triplet":
                     loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
+                else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             
             self.scaler.scale(loss).backward()

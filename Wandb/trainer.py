@@ -84,10 +84,8 @@ class trainer:
         self.loss_calculation = loss_calculation
         #Saving Best Model Config
         self.best_score = -1.1
-        self.best_model = self.model
         self.best_metric = {}
         self.best_loss = 100000000.1
-        self.best_Loss_model = self.model
         self.best_Loss_metric = {}
 
     def run_train(self, epoch):
@@ -130,7 +128,7 @@ class trainer:
 
             image_ids.extend([i.item() for i in image_id])
 
-        table = PrettyTable(["Method"].append(self.train_track_save_list))
+        table = PrettyTable(["Method"].extend(self.train_track_save_list))
         for cls in self.cfg.out_classes: 
             table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, self.train_track_save_list, table)
         
@@ -239,7 +237,11 @@ class trainer:
         return table
         
     def predict(self, train="Val", best=False):
-        if best: model = self.best_model
+        if best: 
+            try:
+                model = torch.load(f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_metric.pth")['model']
+            except:
+                model = self.model
         else: model = self.model
 
         if train == "Val" or train == "Test":
@@ -414,9 +416,8 @@ class trainer:
             self.best_score = score
             self.best_metric = val_metric
             self.best_metric['Result/Stop_Epoch'] = epoch
-            self.best_model = self.model
             checkpoint = create_checkpoint(
-                            self.best_model,
+                            self.model,
                             self.optimizer,
                             epoch,
                             scheduler=self.scheduler,
@@ -432,9 +433,8 @@ class trainer:
             self.best_loss = loss
             self.best_Loss_metric = val_metric
             self.best_Loss_metric['Result/Stop_Epoch'] = epoch
-            self.best_Loss_model = self.model
             checkpoint = create_checkpoint(
-                self.best_Loss_model,
+                self.model,
                 self.optimizer,
                 epoch,
                 scheduler=self.scheduler,

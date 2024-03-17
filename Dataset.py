@@ -49,14 +49,6 @@ class CustomDataset(Dataset):
             data = readVinDr(sample, self.cfg)
         data = self.aug(data)
 
-        # Apply Transformation
-        if (self.cfg.Trans is not None and self.Train == "Train"):
-            data['image'] = data['image'].permute(1,2,0) * 255
-            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
-            Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
-            data['image'] = Trans2(image=data['image'])['image']
-            data['image'] = data['image'].to(torch.float32) / 255
-        
         # Mixing
         if self.dataset == "RSNA" and self.Train == "Train" and random.random() < self.cfg.invert_difficult:
             if sample.difficult_negative_case == 1 and sample.biopsy == 1:
@@ -71,6 +63,15 @@ class CustomDataset(Dataset):
                         data = Mixup(data, supp_data, force_label = self.cfg.force_label)
                     elif self.cfg.mixFunction == "CutMix":
                         data = CutMix(data, supp_data, force_label = self.cfg.force_label)
+        
+        # Apply Transformation
+        if (self.cfg.Trans is not None and self.Train == "Train"):
+            data['image'] = data['image'].permute(1,2,0) * 255
+            data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']
+            Trans2 = ToTensorV2(transpose_mask=False, always_apply=True, p=1.0)
+            data['image'] = Trans2(image=data['image'])['image']
+            data['image'] = data['image'].to(torch.float32) / 255
+        
         return data
 
     def __len__(self):

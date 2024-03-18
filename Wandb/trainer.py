@@ -239,7 +239,9 @@ class trainer:
     def predict(self, train="Val", best=False):
         if best: 
             try:
-                model = torch.load(f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_metric.pth")['model']
+                model = Model(cfg)
+                model.load_state_dict(torch.load(f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_metric.pth")['model'])
+                model.to(self.cfg.device)
             except:
                 model = self.model
         else: model = self.model

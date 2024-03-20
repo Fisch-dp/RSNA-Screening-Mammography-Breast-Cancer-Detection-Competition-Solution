@@ -68,7 +68,7 @@ class trainer:
         
         if self.dataset == "RSNA" and not self.test:
             print("train: ", len(self.train_df), " val: ", len(self.val_df))
-            print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
+            print("Train Pos: ", len(self.train_df[self.train_df['cancer']!=0]), "Val_Pos: ", len(self.train_df[self.val_df['cancer']!=0]))
 
         # Model
         self.model = model.to(cfg.device)

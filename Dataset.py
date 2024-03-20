@@ -49,7 +49,7 @@ class CustomDataset(Dataset):
             data = readVinDr(sample, self.cfg)
         data = self.aug(data)
         
-                # Apply Transformation
+        # Apply Transformation
         if (self.cfg.Trans is not None and self.Train == "Train"):
             data['image'] = data['image'].permute(1,2,0) * 255
             data["image"] = cfg.Trans(image=np.array(data['image'].to(torch.uint8)))['image']

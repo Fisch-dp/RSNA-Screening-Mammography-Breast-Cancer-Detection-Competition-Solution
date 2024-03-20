@@ -128,7 +128,8 @@ class trainer:
 
             image_ids.extend([i.item() for i in image_id])
 
-        save_list = ["Method"].extend(self.train_track_save_list)
+        save_list = ["Method"]
+        save_list.extend(self.train_track_save_list)
         table = PrettyTable(save_list)
         for cls in self.cfg.out_classes: 
             table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, self.train_track_save_list, table)

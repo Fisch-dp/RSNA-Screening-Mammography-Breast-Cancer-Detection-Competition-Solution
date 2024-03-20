@@ -52,8 +52,11 @@ class trainer:
         else:
             self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
             self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
+            self.soft_labeled_train_df = self.train_df.copy()
+            if cfg.soften_label_by is not None:
+                self.soft_labeled_train_df = soft_label(self.soft_labeled_train_df, cfg.soften_label_by)
             self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Val", dataset=dataset)
-        self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=dataset)
+        self.train_dataset = CustomDataset(df=self.soft_labeled_train_df, cfg=cfg, Train="Train", dataset=dataset)
         self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Val", dataset=dataset)
 
         # Dataloaders

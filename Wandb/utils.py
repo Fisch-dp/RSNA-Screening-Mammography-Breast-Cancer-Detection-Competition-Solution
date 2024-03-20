@@ -55,6 +55,11 @@ def set_seed(seed):
     np.random.seed(cfg.seed)
     os.environ['PYTHONHASHSEED'] = str(cfg.seed)
 
+def soft_label(df, soften_by):
+    df.loc[df['cancer']==0, 'cancer'] += soften_by
+    df.loc[df["cancer"]>0, 'cancer'] -= soften_by
+    return df
+
 class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __init__(self, df, batch_size):
         self.batch_size = batch_size

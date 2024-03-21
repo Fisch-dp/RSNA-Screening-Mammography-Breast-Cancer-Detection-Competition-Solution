@@ -56,9 +56,10 @@ def set_seed(seed):
     os.environ['PYTHONHASHSEED'] = str(cfg.seed)
 
 def soft_label(df, soften_by, col=["cancer"]):
-    for c in col:
-        df.loc[df[c]==0, c] += soften_by
-        df.loc[df[c]>0, c] -= soften_by
+    for i,c in enumerate(col):
+        if soften_by[i] is not None:
+            df.loc[df[c]==0, c] += soften_by[i]
+            df.loc[df[c]>0, c] -= soften_by[i]
     return df
 
 class MultiImageBatchSampler(torch.utils.data.Sampler):

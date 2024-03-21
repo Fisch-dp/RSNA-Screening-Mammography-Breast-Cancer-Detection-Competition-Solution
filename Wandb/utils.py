@@ -86,6 +86,25 @@ class MultiImageBatchSampler(torch.utils.data.Sampler):
     def __len__(self):
         return len(self.index)
     
+    class BatchSampler(torch.utils.data.Sampler):
+        def __init__(self, sampler, batch_size):
+            self.sampler = sampler
+            self.batch_size = batch_size
+
+        def __iter__(self):
+            batch = []
+            for idx in self.sampler:
+                batch.append(idx)
+                if len(batch) == self.batch_size:
+                    
+                    yield batch
+                    batch = []
+            if len(batch) > 0:
+                yield batch
+
+        def __len__(self):
+            return (len(self.sampler) + self.batch_size - 1) // self.batch_size
+    
 def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
         margin = torch.tensor(margin).to(cfg.device)
@@ -99,8 +118,8 @@ def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         return loss[2] / len(prediction_id_list)
 
 
-def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None):
-    shu = True
+def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=False):
+    shu = shuffle
     if sampler is not None or batch_sampler is not None: 
         shu = False
     bs = cfg.batch_size

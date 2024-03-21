@@ -249,6 +249,7 @@ class trainer:
                 model.to(self.cfg.device)
             except:
                 model = self.model
+                print("No best metric model found")
         else: model = self.model
 
         if train == "Val" or train == "Test":

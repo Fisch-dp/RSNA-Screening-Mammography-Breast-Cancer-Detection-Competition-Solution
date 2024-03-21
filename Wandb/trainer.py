@@ -375,7 +375,7 @@ class trainer:
                 cls = cls[:3] + "/"
 
         if train == "Val":
-            for i in range(len(self.val_track_save_list[:-2])):
+            for i in range(len(self.val_track_save_list)):
                 wandb.log({f"{by}{cls}{train} {self.val_track_save_list[i]}": metrics[i],
                            "epoch": epoch})
         data_lib = {}

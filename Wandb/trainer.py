@@ -34,7 +34,6 @@ class trainer:
                  test_df = None,
                  ):
         
-        set_seed(cfg.seed)
         assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
         self.df = df

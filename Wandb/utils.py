@@ -82,6 +82,9 @@ def sampling_df(df):
         train_neg = np.setdiff1d(train_neg, selected_negative_samples, True)
 
     np.random.shuffle(arranged_data)
+    group = np.concatenate([train_pos, train_neg])
+    np.random.shuffle(group)
+    arranged_data.append(group)
     arranged_data = np.concatenate(arranged_data)
     return df.iloc[arranged_data]
 
@@ -140,12 +143,12 @@ def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         return loss[2] / len(prediction_id_list)
 
 
-def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=True):
+def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=False, drop_last=False):
     shu = shuffle
     if sampler is not None or batch_sampler is not None: 
         shu = False
     bs = cfg.batch_size
-    dl = True
+    dl = drop_last
     if batch_sampler is not None:
         bs = 1
         dl = False

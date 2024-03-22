@@ -67,7 +67,7 @@ class trainer:
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size))
         else: 
-            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=cfg.shuffle)
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=cfg.shuffle, drop_last=cfg.drop_last)
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg)
         
@@ -98,12 +98,13 @@ class trainer:
         torch.set_grad_enabled(True)
         if self.cfg.reinitailize_train_every_epoch:
             if self.cfg.sample_train_every_epoch:
-                self.train_df = sampling_df(self.train_df)
-            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=self.dataset)
-            self.soft_labeled_train_df = self.train_df.copy()
+                train_df = sampling_df(self.train_df)
+            soft_labeled_train_df = train_df.copy()
             if self.cfg.soften_label_by is not None:
-                self.soft_labeled_train_df = soft_label(self.soft_labeled_train_df, cfg.soften_label_by, cfg.soften_columns)
-            self.train_dataset = CustomDataset(df=self.soft_labeled_train_df, cfg=cfg, Train="Train", dataset=self.dataset)
+                soft_labeled_train_df = soft_label(soft_labeled_train_df, cfg.soften_label_by, cfg.soften_columns)
+            self.train_dataset = CustomDataset(df=soft_labeled_train_df, cfg=cfg, Train="Train", dataset=self.dataset)
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=cfg.shuffle, drop_last=cfg.drop_last)
+
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 

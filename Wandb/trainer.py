@@ -47,6 +47,8 @@ class trainer:
         if self.test:
             self.val_df = test_df
             self.train_df = self.df
+            if self.cfg.sample_train_every_epoch:
+                self.train_df = sampling_df(self.train_df)
             self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Test", dataset=dataset)
             self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=dataset)
         else:
@@ -94,6 +96,14 @@ class trainer:
     def run_train(self, epoch):
         self.model.train()
         torch.set_grad_enabled(True)
+        if self.cfg.reinitailize_train_every_epoch:
+            if self.cfg.sample_train_every_epoch:
+                self.train_df = sampling_df(self.train_df)
+            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=self.dataset)
+            self.soft_labeled_train_df = self.train_df.copy()
+            if self.cfg.soften_label_by is not None:
+                self.soft_labeled_train_df = soft_label(self.soft_labeled_train_df, cfg.soften_label_by, cfg.soften_columns)
+            self.train_dataset = CustomDataset(df=self.soft_labeled_train_df, cfg=cfg, Train="Train", dataset=self.dataset)
         progress_bar = tqdm(range(len(self.train_dataloader)))
         tr_it = iter(self.train_dataloader)
 

@@ -64,7 +64,7 @@ class trainer:
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size))
         else: 
-            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None)
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=cfg.shuffle)
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
             self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg)
         

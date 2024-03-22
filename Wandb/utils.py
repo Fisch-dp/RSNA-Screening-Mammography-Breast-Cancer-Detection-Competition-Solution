@@ -118,7 +118,7 @@ def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         return loss[2] / len(prediction_id_list)
 
 
-def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=False):
+def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=True):
     shu = shuffle
     if sampler is not None or batch_sampler is not None: 
         shu = False

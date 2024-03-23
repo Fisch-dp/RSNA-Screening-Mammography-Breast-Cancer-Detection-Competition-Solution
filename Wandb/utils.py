@@ -47,6 +47,45 @@ from Lookahead import Lookahead
 from numpy.random import default_rng
 
 rng = default_rng()
+def sampling_df_with_replace(df):
+    train_pos = np.array(df[df["cancer"] == 1].index)
+    train_neg = np.array(df[df["cancer"] == 0].index)
+    arranged_data = []
+
+    while len(train_pos) > 0:
+        # Randomly select 1-2 positive samples
+        num_positive_samples = cfg.num_positive_samples
+
+        selected_positive_index = rng.choice(np.arange(0, len(train_pos)), size=num_positive_samples, replace=False, shuffle=False)
+        selected_positive_samples = train_pos[selected_positive_index]
+
+        # Randomly select negative samples to fill the remaining slots
+        num_negative_samples = cfg.batch_size - num_positive_samples
+        if(len(train_neg) < num_negative_samples):
+            selected_negative_samples = train_neg
+        else: 
+            selected_negative_index = rng.choice(np.arange(0, len(train_neg)), size=num_negative_samples, replace=False, shuffle=False)
+        selected_negative_samples = train_neg[selected_negative_index]
+
+        # Concatenate positive and negative samples into a group of 64 items
+        group = np.concatenate([selected_positive_samples, selected_negative_samples])
+        np.random.shuffle(group)
+        
+        if(len(train_neg) < num_negative_samples):
+            break
+        # Add the group to the arranged data
+        arranged_data.append(group)
+
+        # Remove the selected samples from the negative samples
+        train_neg = np.setdiff1d(train_neg, selected_negative_samples, True)
+
+    np.random.shuffle(arranged_data)
+    group = np.concatenate([train_pos, train_neg])
+    np.random.shuffle(group)
+    arranged_data.append(group)
+    arranged_data = np.concatenate(arranged_data)
+    return df.iloc[arranged_data]
+
 def sampling_df(df):
     train_pos = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)
@@ -55,7 +94,7 @@ def sampling_df(df):
 
     while len(train_pos) > 0:
         # Randomly select 1-2 positive samples
-        if len(train_pos) > len(train_neg) / cfg.batch_size + 6:
+        if len(train_pos) > len(train_neg) / cfg.batch_size + cfg.batch_offset:
             num_positive_samples = 2
         else: 
             num_positive_samples = 1

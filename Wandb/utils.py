@@ -65,7 +65,7 @@ def sampling_df_with_replace(df):
             selected_negative_samples = train_neg
         else: 
             selected_negative_index = rng.choice(np.arange(0, len(train_neg)), size=num_negative_samples, replace=False, shuffle=False)
-        selected_negative_samples = train_neg[selected_negative_index]
+            selected_negative_samples = train_neg[selected_negative_index]
 
         # Concatenate positive and negative samples into a group of 64 items
         group = np.concatenate([selected_positive_samples, selected_negative_samples])
@@ -78,9 +78,9 @@ def sampling_df_with_replace(df):
 
         # Remove the selected samples from the negative samples
         train_neg = np.setdiff1d(train_neg, selected_negative_samples, True)
-
+        
     np.random.shuffle(arranged_data)
-    group = np.concatenate([train_pos, train_neg])
+    group = np.concatenate([selected_positive_samples, train_neg])
     np.random.shuffle(group)
     arranged_data.append(group)
     arranged_data = np.concatenate(arranged_data)

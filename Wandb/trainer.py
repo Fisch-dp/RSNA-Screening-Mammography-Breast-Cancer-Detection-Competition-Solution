@@ -48,7 +48,7 @@ class trainer:
             self.val_df = test_df
             self.train_df = self.df
             if self.cfg.sample_train_every_epoch:
-                if self.sample_df_with_replace:
+                if self.cfg.sample_df_with_replace:
                     self.train_df = sampling_df_with_replace(self.train_df)
                 else: self.train_df = sampling_df(self.train_df)
             self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Test", dataset=dataset)
@@ -100,7 +100,7 @@ class trainer:
         torch.set_grad_enabled(True)
         if self.cfg.reinitailize_train_every_epoch:
             if self.cfg.sample_train_every_epoch:
-                if self.sample_df_with_replace:
+                if self.cfg.sample_df_with_replace:
                     self.train_df = sampling_df_with_replace(self.train_df)
                 else: train_df = sampling_df(self.train_df)
             soft_labeled_train_df = train_df.copy()

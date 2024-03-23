@@ -101,7 +101,7 @@ class trainer:
         if self.cfg.reinitailize_train_every_epoch:
             if self.cfg.sample_train_every_epoch:
                 if self.cfg.sample_df_with_replace:
-                    self.train_df = sampling_df_with_replace(self.train_df)
+                    train_df = sampling_df_with_replace(self.train_df)
                 else: train_df = sampling_df(self.train_df)
             soft_labeled_train_df = train_df.copy()
             if self.cfg.soften_label_by is not None:

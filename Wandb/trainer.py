@@ -331,7 +331,8 @@ class trainer:
                     if cls == self.cfg.out_classes[0]: 
                         BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         if self.dataset == "RSNA":
-                            for s in [0, 1]: _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
+                            for s in pd.unique(df.site_id): 
+                                _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
                     elif cls != self.cfg.out_classes[0]:
                         _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
                         data_lib.update(lib)

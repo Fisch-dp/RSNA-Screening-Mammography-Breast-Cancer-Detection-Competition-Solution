@@ -285,7 +285,7 @@ def get_scheduler(cfg, train_loader_len, optimizer):
         )
         scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer,
                                                           schedulers=[warmup, oneCycleLR], 
-                                                          milestones=1, 
+                                                          milestones=[1], 
         )
     else:
         scheduler = torch.optim.lr_scheduler.StepLR(

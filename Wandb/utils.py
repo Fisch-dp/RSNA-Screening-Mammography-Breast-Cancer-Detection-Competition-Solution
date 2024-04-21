@@ -46,6 +46,8 @@ from config import *
 from Lookahead import Lookahead
 from numpy.random import default_rng
 
+from warmup_scheduler import GradualWarmupScheduler
+
 rng = default_rng()
 def sampling_df_with_replace(df):
     train_pos = np.array(df[df["cancer"] == 1].index)
@@ -260,6 +262,30 @@ def get_scheduler(cfg, train_loader_len, optimizer):
             optimizer,
             step_size=cfg.StepLR_step_size,
             gamma=cfg.StepLR_gamma
+        )
+    elif cfg.scheduler == "warmupOneCycleLR":
+        oneCycleLR = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=cfg.lr,
+            epochs=cfg.epochs,
+            steps_per_epoch=train_loader_len,
+            pct_start=0.1,
+            anneal_strategy="cos",
+            div_factor=cfg.lr_div,
+            final_div_factor=cfg.lr_final_div,
+        )
+        stepLR = torch.optim.lr_scheduler.StepLR(optimizer, 
+                                                 step_size=cfg.StepLR_step_size//cfg.epochs, 
+                                                 gamma=cfg.StepLR_gamma
+        )
+        warmup = GradualWarmupScheduler(optimizer, 
+                                           multiplier=1, 
+                                           total_epoch=cfg.warmup, 
+                                           after_scheduler=stepLR
+        )
+        scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer,
+                                                          schedulers=[warmup, oneCycleLR], 
+                                                          milestones=1, 
         )
     else:
         scheduler = torch.optim.lr_scheduler.StepLR(

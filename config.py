@@ -34,7 +34,6 @@ cfg.start_cal_metric_epoch = 1
 cfg.warmup = 1
 cfg.run_tta_val = False
 cfg.lr_final_div = 10000.0
-#cfg.warmup_epoch = 1
 cfg.restart_epoch = 100
 
 # dataset

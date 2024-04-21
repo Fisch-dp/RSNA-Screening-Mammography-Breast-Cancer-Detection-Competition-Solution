@@ -260,7 +260,7 @@ def get_scheduler(cfg, train_loader_len, optimizer):
     elif cfg.scheduler == "StepLR":
         scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer,
-            step_size=train_loader_len * cfg.epochs,
+            step_size=cfg.StepLR_step_size,
             gamma=cfg.StepLR_gamma
         )
     elif cfg.scheduler == "warmupOneCycleLR":
@@ -274,23 +274,15 @@ def get_scheduler(cfg, train_loader_len, optimizer):
             div_factor=cfg.lr_div,
             final_div_factor=cfg.lr_final_div,
         )
-        stepLR = torch.optim.lr_scheduler.StepLR(optimizer, 
-                                                 step_size=train_loader_len * cfg.warmup, 
-                                                 gamma=cfg.StepLR_gamma
-        )
-        warmup = GradualWarmupScheduler(optimizer, 
+        scheduler = GradualWarmupScheduler(optimizer, 
                                            multiplier=1, 
                                            total_epoch=cfg.warmup, 
-                                           after_scheduler=stepLR
-        )
-        scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer,
-                                                          schedulers=[warmup, oneCycleLR], 
-                                                          milestones=[1], 
+                                           after_scheduler=oneCycleLR
         )
     else:
         scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer,
-            step_size=train_loader_len * cfg.epochs,
+            step_size=cfg.StepLR_step_size,
             gamma=cfg.StepLR_gamma
         )
     return scheduler

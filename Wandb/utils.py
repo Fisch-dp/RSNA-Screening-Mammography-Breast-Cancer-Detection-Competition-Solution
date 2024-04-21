@@ -274,9 +274,9 @@ def get_scheduler(cfg, train_loader_len, optimizer):
             div_factor=cfg.lr_div,
             final_div_factor=cfg.lr_final_div,
         )
-        scheduler = GradualWarmupScheduler(optimizer, 
-                                           multiplier=1, 
-                                           total_epoch=cfg.warmup, 
+        scheduler = GradualWarmupScheduler(optimizer,
+                                           multiplier=1,
+                                           total_epoch=train_loader_len * cfg.warmup, 
                                            after_scheduler=oneCycleLR
         )
     else:

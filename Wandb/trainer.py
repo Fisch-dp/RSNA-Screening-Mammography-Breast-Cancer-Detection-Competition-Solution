@@ -470,7 +470,7 @@ class trainer:
             )
                 
     def fit(self):
-        for epoch in range(self.cfg.epochs):
+        for epoch in range(self.cfg.epochs + self.cfg.warmup):
             print("EPOCH:", epoch)
             self.run_train(epoch)
             score, loss, val_metric = self.run_eval(epoch, train="Val")

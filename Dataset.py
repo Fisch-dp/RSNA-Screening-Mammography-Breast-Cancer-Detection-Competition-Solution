@@ -31,13 +31,7 @@ class CustomDataset(Dataset):
         self.epoch_len = self.df.shape[0]
         self.Train = Train
         self.dataset = dataset
-        self.aug = Compose([
-            LoadImaged(keys="image", image_only=True),
-            EnsureChannelFirstd(keys="image"),
-            Transposed(keys="image", indices=(0, 2, 1)),
-            Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
-            Lambdad(keys="image", func=lambda x: x / 255.0),
-        ])
+        self.aug = cfg.img_preprocess
 
     def __getitem__(self, idx):
         sample = self.df.iloc[idx]

@@ -34,7 +34,6 @@ class CustomDataset(Dataset):
         self.aug = Compose([
             LoadImaged(keys="image", image_only=True),
             EnsureChannelFirstd(keys="image"),
-            RepeatChanneld(keys="image", repeats=3),
             Transposed(keys="image", indices=(0, 2, 1)),
             Resized(keys="image", spatial_size=cfg.img_size, mode="bilinear"),
             Lambdad(keys="image", func=lambda x: x / 255.0),

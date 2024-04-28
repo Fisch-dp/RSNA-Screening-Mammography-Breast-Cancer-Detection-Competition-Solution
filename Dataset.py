@@ -50,6 +50,11 @@ class CustomDataset(Dataset):
             data['image'] = Trans2(image=data['image'])['image']
             data['image'] = data['image'].to(torch.float32) / 255
 
+        # padding
+        if self.cfg.pad:
+            padded = torch.zeros((1, self.cfg.img_size[0], self.cfg.img_size[1]))
+            padded[:, :data['image'].shape[1], :data['image'].shape[2]] = data['image']
+            data['image'] = padded
 
         # Mixing
         if self.dataset == "RSNA" and self.Train == "Train" and random.random() < self.cfg.invert_difficult:

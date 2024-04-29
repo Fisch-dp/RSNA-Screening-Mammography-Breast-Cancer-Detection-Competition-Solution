@@ -69,6 +69,14 @@ class CustomDataset(Dataset):
                     sample = self.df.iloc[np.random.choice(mask.index)]
                     supp_data = read(sample, self.cfg)
                     supp_data = self.aug(supp_data)
+                    if self.cfg.pad:
+                        padded = torch.zeros((1, self.cfg.img_size[0], self.cfg.img_size[1]))
+                        if self.cfg.pad_mode == "center":
+                            difference = math.floor((padded.shape[2] - supp_data['image'].shape[2]) / 2)
+                            padded[:, :, difference:difference+supp_data['image'].shape[2]] = supp_data['image']
+                        elif self.cfg.pad_mode == "left":
+                            padded[:, :, :supp_data['image'].shape[2]] = supp_data['image']
+                        supp_data['image'] = padded
                     if self.cfg.mixFunction == "simple":
                         data = simple_invert(data, supp_data, self.cfg)
                     elif self.cfg.mixFunction == "Mixup":

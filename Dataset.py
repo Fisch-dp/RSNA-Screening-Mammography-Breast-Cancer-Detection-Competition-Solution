@@ -16,6 +16,7 @@ from monai.transforms import (
     Resized,
     Lambdad
 )
+import math
 
 class CustomDataset(Dataset):
     def __init__(
@@ -53,7 +54,11 @@ class CustomDataset(Dataset):
         # padding
         if self.cfg.pad:
             padded = torch.zeros((1, self.cfg.img_size[0], self.cfg.img_size[1]))
-            padded[:, :data['image'].shape[1], :data['image'].shape[2]] = data['image']
+            if self.cfg.pad_mode == "center":
+                difference = math.floor((padded.shape[2] - data['image'].shape[2]) / 2)
+                padded[:, :, difference:difference+data['image'].shape[2]] = data['image']
+            elif self.cfg.pad_mode == "left":
+                padded[:, :, :data['image'].shape[2]] = data['image']
             data['image'] = padded
 
         # Mixing

@@ -88,7 +88,7 @@ def sampling_df_with_replace(df):
     arranged_data = np.concatenate(arranged_data)
     return df.iloc[arranged_data]
 
-def sampling_df1(df):
+def sampling_df(df):
     train_pos = np.array(df[df["cancer"] == 1].index)
     train_pos_backup = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)

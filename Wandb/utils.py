@@ -88,15 +88,16 @@ def sampling_df_with_replace(df):
     arranged_data = np.concatenate(arranged_data)
     return df.iloc[arranged_data]
 
-def sampling_df(df):
+def sampling_df1(df):
     train_pos = np.array(df[df["cancer"] == 1].index)
+    train_pos_backup = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)
     arranged_data = []
-    
+    backupused = False
 
-    while len(train_pos) > 0:
+    while len(train_pos) > 0 and len(train_neg) > cfg.batch_size:
         # Randomly select 1-2 positive samples
-        if len(train_pos) > len(train_neg) / cfg.batch_size + cfg.batch_offset:
+        if len(train_pos) > len(train_neg) / cfg.batch_size + cfg.batch_offset and not backupused:
             num_positive_samples = 2
         else: 
             num_positive_samples = 1
@@ -121,7 +122,10 @@ def sampling_df(df):
         # Remove the selected samples from the positive and negative samples
         train_pos = np.setdiff1d(train_pos, selected_positive_samples, True)
         train_neg = np.setdiff1d(train_neg, selected_negative_samples, True)
-
+        if len(train_pos) < 1 and len(train_neg) > cfg.batch_size and cfg.further_sample_pos:
+            train_pos = train_pos_backup
+            backupused = True
+    
     np.random.shuffle(arranged_data)
     group = np.concatenate([train_pos, train_neg])
     np.random.shuffle(group)

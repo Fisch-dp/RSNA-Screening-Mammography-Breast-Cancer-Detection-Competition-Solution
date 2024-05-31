@@ -1,24 +1,9 @@
-import wandb
-from PIL import Image
-import argparse
-import gc
-import importlib
 import os
 import sys
-import shutil
-import pydicom as dcm
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
-import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-import json
-import cv2
-from sklearn.metrics import roc_auc_score
-import timm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedGroupKFold
 import warnings
@@ -26,24 +11,10 @@ import seaborn as sns
 from sklearn import metrics
 from matplotlib.collections import LineCollection
 from sklearn.metrics import PrecisionRecallDisplay
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-import albumentations as A
 from albumentations import *
-from albumentations.pytorch.transforms import ToTensorV2
 import random
-from monai.transforms import (
-    Compose,
-    LoadImaged,
-    EnsureChannelFirstd,
-    RepeatChanneld,
-    Transposed,
-    Resized,
-    Lambdad
-)
 sys.path.append('./')
 from config import *
-from Lookahead import Lookahead
 from numpy.random import default_rng
 
 from warmup_scheduler import GradualWarmupScheduler
@@ -407,7 +378,7 @@ def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
 
     return df_out
 
-def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None, bins=10):
+def get_probability_hist(df_list, writer, df_names=["Train", "Val"], threshold=None, bins=10):
     fig, axes = plt.subplots(len(df_list), max(len(cfg.out_classes) + 2, 2), figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
     based_on = "Label"
@@ -440,9 +411,9 @@ def get_probability_hist(df_list, df_names=["Train", "Val"], threshold=None, bin
             axes[i,k].set_title(f"Site{site+1} {df_names[i]} {cfg.out_classes[0].capitalize()}")
     plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/histogram.png")
     plt.show()
-    wandb.log({ f'Images/Based on {based_on}' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/histogram.png")) })
+    writer.save_Image(name=f'Images/Based on {based_on}', image_path=f"{cfg.output_dir}/fold{cfg.fold}/histogram.png")
     
-def get_corr_matrix(df_list, df_names=["Train", "Val"]):
+def get_corr_matrix(df_list, writer, df_names=["Train", "Val"]):
     fig, axes = plt.subplots(len(df_list), 3, figsize=(30, 15))
     plt.subplots_adjust(hspace=0.2, wspace=0.3)
     for i, df in enumerate(df_list):
@@ -455,10 +426,9 @@ def get_corr_matrix(df_list, df_names=["Train", "Val"]):
             axes[i,j+1].set_title(f"Site{j+1} {df_names[i]}")
     plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/corr_matrix.png")
     plt.show()
-    wandb.log({ f'Images/Confusion Matrix' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/corr_matrix.png")) })
+    writer.save_Image(name=f'Images/Confusion Matrix', image_path=f"{cfg.output_dir}/fold{cfg.fold}/corr_matrix.png")
 
 def color_map(data, cmap):
-    
     dmin, dmax = np.nanmin(data), np.nanmax(data)
     cmo = plt.cm.get_cmap(cmap)
     cs, k = list(), 256/cmo.N
@@ -469,10 +439,9 @@ def color_map(data, cmap):
             cs.append(c)
     cs = np.array(cs)
     data = np.uint8(255*(data-dmin)/(dmax-dmin))
-    
     return cs[data]
 
-def get_PR_curve(df_list, best_metric, mode, df_names=["Train", "Val"], by="prediction_id"):
+def get_PR_curve(df_list, best_metric, mode, writer, df_names=["Train", "Val"], by="prediction_id"):
     fig, axes = plt.subplots(len(df_list), max(len(cfg.out_classes),2), figsize=(10, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
     for i, df in enumerate(df_list):
@@ -546,34 +515,5 @@ def get_PR_curve(df_list, best_metric, mode, df_names=["Train", "Val"], by="pred
             axes[i,j].plot(lims, lims, '-', alpha=0.3, zorder=0, color="gray")
     plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
     plt.show()
-    wandb.log({ f'Images/PR Curve' : wandb.Image(Image.open(f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")) })
+    writer.save_Image(name=f'Images/PR Curve', image_path=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
 
-def func():
-    pca = PCA(n_components=3)
-    newX = pca.fit_transform(image)
-    
-    fig = plt.figure()
-#     ax = fig.add_subplot(projection='3d')
-#     for label,(i,j,k) in enumerate(newX):
-#         if int(batch['label'][label])==0:
-#             m = 'o'
-#             co = 'b'
-#         elif int(batch['label'][label])==1:
-#             m = '^'
-#             co = 'r'
-#         ax.scatter(i,j,k,marker=m, c=co)
-#     print (pca.explained_variance_ratio_)
-
-    tsne = TSNE(n_components=3, learning_rate='auto',init='random', perplexity=3)
-    X_embedded = tsne.fit_transform(image)
-    ax = fig.add_subplot(projection='3d')
-    for label,(i,j,k) in enumerate(X_embedded):
-        if int(batch['label'][label])==0:
-            m = 'o'
-            co = 'b'
-        elif int(batch['label'][label])==1:
-            m = '^'
-            co = 'r'
-        ax.scatter(i,j,k,marker=m, c=co)
-    plt.show()
-    print (tsne.kl_divergence_)

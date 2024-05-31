@@ -7,15 +7,6 @@ from config import *
 from torch.utils.data import DataLoader, Dataset
 import torch
 import random
-from monai.transforms import (
-    Compose,
-    LoadImaged,
-    EnsureChannelFirstd,
-    RepeatChanneld,
-    Transposed,
-    Resized,
-    Lambdad
-)
 import math
 
 class CustomDataset(Dataset):
@@ -88,6 +79,7 @@ class CustomDataset(Dataset):
     def __len__(self):
         return self.epoch_len
 
+# Read data functions
 def read(sample, cfg):
     data = {
             "image": os.path.join(cfg.root_dir, f"{sample.patient_id}_{sample.image_id}.png"),

@@ -67,3 +67,4 @@ cfg.aux_input = ["age", "implant", "view", "site", "machine"]
 cfg.evaluation_by = ["image_id", "prediction_id", "patient_id"]
 cfg.tta = False #True
 cfg.evalSaveID = "prediction_id"
+cfg.log_dir = str(cfg.output_dir + f"/fold{cfg.fold}/")

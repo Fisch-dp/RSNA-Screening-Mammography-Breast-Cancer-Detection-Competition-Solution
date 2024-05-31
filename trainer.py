@@ -1,5 +1,4 @@
 import sys
-import wandb
 import numpy as np
 import pandas as pd
 import torch
@@ -8,7 +7,6 @@ import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
-from prettytable import PrettyTable
 from sklearn import metrics
 
 sys.path.append("./")
@@ -16,7 +14,8 @@ from config import *
 from Model import *
 from Lookahead import *
 from Dataset import *
-from Wandb.utils import *
+from utils import *
+from summaryWriter import *
 
 class trainer:
     def __init__(self, 
@@ -32,6 +31,7 @@ class trainer:
                  dataset = "RSNA",
                  test = False,
                  test_df = None,
+                 name = " "
                  ):
         
         assert len(loss_functions) == len(cfg.out_classes)
@@ -40,8 +40,8 @@ class trainer:
         self.mode = mode
         self.dataset = dataset
         self.test = test
-        self.train_track_save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"]
-        self.val_track_save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"]
+        self.train_track_save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"],
+        self.val_track_save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"],
 
         # Datasets
         if self.test:
@@ -77,6 +77,14 @@ class trainer:
             print("train: ", len(self.train_df), " val: ", len(self.val_df))
             print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
+        # SummaryWriter
+        self.writer = SummaryWriter(cfg=cfg, 
+                                    name=name, 
+                                    write_to="wandb",
+                                    notes="",
+                                    project= "RSNA Second Attempt", 
+                                    group= "Initial Tests"
+                                    )
         # Model
         self.model = model.to(cfg.device)
         # Optimizer
@@ -95,6 +103,7 @@ class trainer:
         self.best_loss = 100000000.1
         self.best_Loss_metric = {}
 
+################################### Training ###################################
     def run_train(self, epoch):
         self.model.train()
         torch.set_grad_enabled(True)
@@ -118,19 +127,17 @@ class trainer:
         image_ids = []
             
         for i,itr in enumerate(progress_bar):
+            # Pipeline Testing
             if self.cfg.test_iter is not None and i == self.cfg.test_iter: 
                 break
-
-            wandb.log({f"Learning_Rate": self.scheduler.get_last_lr()[-1]}, step=epoch * len(self.train_dataloader) + itr)
+            self.writer.add_scalar("Learning_Rate", self.scheduler.get_last_lr()[-1], step=epoch * len(self.train_dataloader) + itr)
             batch = next(tr_it)
-            if self.dataset == "RSNA":
-                if self.mode == "multi":
-                    loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
-                elif self.mode == "multiScale":
-                    loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
-                elif self.mode == "triplet":
-                    loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
-                else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
+            if self.mode == "multi":
+                loss, label_dic, out_dic, loss_dic, out_print = self.MultiTrain(batch, label_dic, out_dic, loss_dic, "")
+            elif self.mode == "multiScale":
+                loss, label_dic, out_dic, loss_dic, out_print = self.multiScaleTrain(batch, label_dic, out_dic, loss_dic, "")
+            elif self.mode == "triplet":
+                loss, label_dic, out_dic, loss_dic, out_print = self.tripletTrain(batch, epoch * len(self.train_dataloader) + itr, label_dic, out_dic, loss_dic, "")
             else: loss, label_dic, out_dic, loss_dic, out_print, image_id = self.train(batch, label_dic, out_dic, loss_dic, "")
             
             self.scaler.scale(loss).backward()
@@ -145,47 +152,16 @@ class trainer:
             progress_bar.set_description(out_print)
 
             image_ids.extend([i.item() for i in image_id])
-
-        save_list = ["Method"]
-        save_list.extend(self.train_track_save_list)
-        table = PrettyTable(save_list)
-        for cls in self.cfg.out_classes: 
-            table = self.train_write(label_dic[cls], out_dic[cls], cls, epoch, self.train_track_save_list, table)
+            
+        # write and print training results this epoch
+            
+        self.writer.train_epoch_save_print_result(label_dic, out_dic, epoch)
         
         #create a new df and then merge with train_df 
-        if self.mode == "single" and self.dataset == "RSNA":
-            df = pd.DataFrame({"image_id": image_ids})
-            for cls in self.cfg.out_classes:
-                df[f"{cls}_outputs"] = out_dic[cls]
-                df[f"{cls}_loss"] = F.binary_cross_entropy(torch.tensor(out_dic[cls]).to(torch.float32), torch.tensor(label_dic[cls]).to(torch.float32),reduction="none")
-            df = df.merge(self.train_df, on="image_id", how="left")
-            df = df.sort_values(by=[f"{self.cfg.out_classes[0]}_loss"], ascending=False).reset_index(drop=True)
-            df.to_csv(f"{self.cfg.output_dir}/train{epoch}.csv", index=False)
-        print(table.get_string())
+        if self.mode == "single":
+            self.writer.save_output_csv(epoch, image_ids=image_ids, out_dic=out_dic, label_dic=label_dic)
 
-    def read_data(self, batch):
-        inputs = batch["image"].float().to(self.cfg.device)
-        if self.dataset == "RSNA":
-            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.out_classes]
-        elif self.dataset == "VinDr":
-            labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.cfg.out_classes]
-        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.aux_input]
-        return inputs, labels_list, aux_input_list, batch["prediction_id"], batch["image_id"]
-    
-    def calculate_save_loss(self, loss_dic, out_dic, label_dic, labels_list, outputs_list):
-        loss = []
-        for i in range(len(self.cfg.out_classes)):
-            loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
-            loss_dic[self.cfg.out_classes[i]].append(loss[i].item())
-            if self.dataset == "RSNA":
-                out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
-            elif self.dataset == "VinDr":
-                out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
-            temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
-            temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
-            label_dic[self.cfg.out_classes[i]].extend(temp_labels) 
-        return loss, loss_dic, out_dic, label_dic
-    
+##### different training methods
     def train(self, batch, label_dic, out_dic, loss_dic, out_print):
         inputs, labels_list, aux_input_list, prediction_ids, image_ids = self.read_data(batch)
         with autocast():
@@ -225,13 +201,36 @@ class trainer:
 
         tri_loss = triplet_loss(intermediate, prediction_id)
         out_print += f"Triplet Loss: {tri_loss.item():.2f}, "
-        wandb.log({f"Triplet Loss": tri_loss.item(),
-                   "batch": iteration})
+        self.writer.add_scalar("Triplet_Loss", tri_loss.item(), step=iteration, x_axis="batch")
 
         loss = self.loss_calculation(loss) + tri_loss
         return loss, label_dic, out_dic, loss_dic, out_print
 
-    def train_metrics(self, all_labels, all_outputs, cls):
+##### Util Functions
+    def read_data(self, batch):
+        inputs = batch["image"].float().to(self.cfg.device)
+        if self.dataset == "RSNA":
+            labels_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.out_classes]
+        elif self.dataset == "VinDr":
+            labels_list = [batch[cls].long().to(self.cfg.device) for cls in self.cfg.out_classes]
+        aux_input_list = [batch[cls].float().to(self.cfg.device) for cls in self.cfg.aux_input]
+        return inputs, labels_list, aux_input_list, batch["prediction_id"], batch["image_id"]
+    
+    def calculate_save_loss(self, loss_dic, out_dic, label_dic, labels_list, outputs_list):
+        loss = []
+        for i in range(len(self.cfg.out_classes)):
+            loss.append(self.loss_functions[i](outputs_list[i], labels_list[i]))
+            loss_dic[self.cfg.out_classes[i]].append(loss[i].item())
+            if self.dataset == "RSNA":
+                out_dic[self.cfg.out_classes[i]].extend(torch.sigmoid(outputs_list[i]).detach().cpu().numpy()[:,0])
+            elif self.dataset == "VinDr":
+                out_dic[self.cfg.out_classes[i]].extend(torch.softmax(outputs_list[i], dim=-1).detach().cpu().numpy()[:,0])
+            temp_labels = labels_list[i].detach().cpu().numpy()[:,0] 
+            temp_labels[temp_labels != 0.0] = np.expand_dims(np.array(1, dtype=np.float32), axis=0)
+            label_dic[self.cfg.out_classes[i]].extend(temp_labels) 
+        return loss, loss_dic, out_dic, label_dic
+    
+    def train_get_metrics(self, all_labels, all_outputs, cls):
         if self.dataset == "RSNA":
             score, recall, precision = pfbeta(all_labels, all_outputs, 1.0)
             loss = F.binary_cross_entropy(torch.tensor(all_outputs).to(torch.float32), torch.tensor(all_labels).to(torch.float32),reduction="none")
@@ -246,16 +245,49 @@ class trainer:
         auc = float(roc_auc_score(all_labels, all_outputs))
         return [f"{cls[:3]} Train", score, auc, loss, loss_1, loss_0, recall, precision]
 
-    def train_write(self, all_labels, all_outputs, cls, epoch, save_list, table):
-        metrics = self.train_metrics(all_labels, all_outputs, cls)
-        cls = cls[:3].capitalize() + "/"
-        for i in range(len(save_list)):
-            wandb.log({f"{cls}Train {save_list[i]}": metrics[i + 1],
-                       "epoch": epoch})
-            metrics[i+1] = round(metrics[i+1], 3)
-        table.add_row(metrics)
-        return table
-        
+    def train_epoch_save_print_result(self, label_dic, out_dic, epoch):
+        save_list = ["Method"]
+        save_list.extend(self.train_track_save_list)
+        table = PrettyTable(save_list)
+        for cls in self.cfg.out_classes: 
+            metrics = self.train_get_metrics(label_dic[cls], out_dic[cls], cls)
+            cls = cls[:3].capitalize() + "/"
+            for i in range(len(save_list)):
+                self.writer.add_scalar(f"{cls}Train {save_list[i]}", metrics[i + 1], step=epoch, x_axis="epoch")
+                metrics[i+1] = round(metrics[i+1], 3)
+            table.add_row(metrics)
+        print(table.get_string())
+
+################################### Evaluation ###################################
+    def run_eval(self, epoch, train="Val", best=False):
+        df = self.predict(train, best=best)
+        save_list = ["Method"]
+        save_list.extend(self.val_track_save_list)
+        table = PrettyTable(save_list)
+        for cls in self.cfg.out_classes:
+            for k in self.cfg.evaluation_by:
+                if k == self.cfg.evalSaveID:
+                    if cls == self.cfg.out_classes[0]: 
+                        BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
+                        if self.dataset == "RSNA" and len(pd.unique(df.site_id)) == 2:
+                            for s in [0,1]: 
+                                _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
+                    elif cls != self.cfg.out_classes[0]:
+                        _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
+                        data_lib.update(lib)
+                else:
+                    if cls == self.cfg.out_classes[0]:
+                        _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k)
+        print(table)
+
+        #create a new df and then merge with train_df 
+        if self.mode == "single":
+            self.writer.save_output_csv(epoch, df=df, mode="val")
+
+        if BINSCORE > 0.1 and self.dataset == "RSNA" and not self.test and train == "Val" and self.cfg.invert_difficult >= 0.2 and epoch/cfg.epochs > 0.3 and cfg.decrease_invert_rate > 0:
+            cfg.invert_difficult *= cfg.decrease_invert_rate
+        return BINSCORE, LOSS, data_lib
+
     def predict(self, train="Val", best=False):
         if best: 
             try:
@@ -322,29 +354,8 @@ class trainer:
             
         return df
 
-    def run_eval(self, epoch, train="Val", best=False):
-        df = self.predict(train, best=best)
-        table = PrettyTable(["Method", "F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"])
-        for cls in self.cfg.out_classes:
-            for k in self.cfg.evaluation_by:
-                if k == self.cfg.evalSaveID:
-                    if cls == self.cfg.out_classes[0]: 
-                        BINSCORE, LOSS, data_lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
-                        if self.dataset == "RSNA" and len(pd.unique(df.site_id)) == 2:
-                            for s in [0,1]: 
-                                _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k, site_id=s)
-                    elif cls != self.cfg.out_classes[0]:
-                        _, _, lib, table = self.eval_write(df, epoch, cls, table, train, by=k)
-                        data_lib.update(lib)
-                else:
-                    if cls == self.cfg.out_classes[0]:
-                        _, _, _, table = self.eval_write(df, epoch, cls, table, train, by=k)
-        print(table)
-        if BINSCORE > 0.1 and self.dataset == "RSNA" and not self.test and train == "Val" and self.cfg.invert_difficult >= 0.2 and epoch/cfg.epochs > 0.3 and cfg.decrease_invert_rate > 0:
-            cfg.invert_difficult *= cfg.decrease_invert_rate
-        return BINSCORE, LOSS, data_lib
-    
-    def eval_metrics(self, df, cls, by="prediction_id"):
+##### Util Functions
+    def eval_get_metrics(self, df, cls, by="prediction_id"):
         all_labels = np.array(df[f"{cls}"])
         all_outputs = np.array(df[f"{cls}_outputs"])
         threshold = -0.01
@@ -377,7 +388,7 @@ class trainer:
         if site_id is not None:
             df = df[df["site_id"] == site_id]
             method = f"site{site_id+1} "
-        metrics = self.eval_metrics(df, cls, by)
+        metrics = self.eval_get_metrics(df, cls, by)
         cls = cls.capitalize()
         method += f"{cls[:3]} {train} by {by}"
 
@@ -392,8 +403,8 @@ class trainer:
 
         if train == "Val":
             for i in range(len(self.val_track_save_list)):
-                wandb.log({f"{by}{cls}{train} {self.val_track_save_list[i]}": metrics[i],
-                           "epoch": epoch})
+                self.writer.add_scalar(metrics[i], metrics[i], step=epoch, x_axis="epoch")
+ 
         data_lib = {}
         for i in range(len(self.val_track_save_list)):
             data_lib[f"Result/{cls[:3]} {train} {self.val_track_save_list[i]}"] = metrics[i]
@@ -402,6 +413,23 @@ class trainer:
         table.add_row(metrics)
         return metrics[2], metrics[4], data_lib, table
 
+################################### Overall ###################################
+    def fit(self):
+        for epoch in range(self.cfg.epochs + self.cfg.warmup):
+            print("EPOCH:", epoch)
+            self.run_train(epoch)
+            score, loss, val_metric = self.run_eval(epoch, train="Val")
+            self.saving_best(score, loss, val_metric, epoch)
+
+        _, _, train_metric = self.run_eval(epoch=self.best_metric['Result/Stop_Epoch'], train="Train", best=True)
+
+        self.best_Loss_metric = {f'Loss_{i}': self.best_Loss_metric[i] for i in self.best_Loss_metric}
+
+        self.best_metric.update(self.best_Loss_metric)
+        self.best_metric.update(train_metric)
+        return self.best_metric
+
+##### Util Functions
     def optimize(self, df, all_labels, cls, by="prediction_id"):
         bin_score = -0.01
         threshold = 0.0
@@ -468,18 +496,5 @@ class trainer:
                 checkpoint,
                 f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_Loss_metric.pth",
             )
+
                 
-    def fit(self):
-        for epoch in range(self.cfg.epochs + self.cfg.warmup):
-            print("EPOCH:", epoch)
-            self.run_train(epoch)
-            score, loss, val_metric = self.run_eval(epoch, train="Val")
-            self.saving_best(score, loss, val_metric, epoch)
-
-        _, _, train_metric = self.run_eval(epoch=self.best_metric['Result/Stop_Epoch'], train="Train", best=True)
-
-        self.best_Loss_metric = {f'Loss_{i}': self.best_Loss_metric[i] for i in self.best_Loss_metric}
-
-        self.best_metric.update(self.best_Loss_metric)
-        self.best_metric.update(train_metric)
-        return self.best_metric

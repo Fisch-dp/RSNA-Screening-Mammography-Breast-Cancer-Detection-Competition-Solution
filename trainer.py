@@ -16,7 +16,7 @@ from Lookahead import *
 from Dataset import *
 from utils import *
 from summaryWriter import *
-from batchsampler import *
+from batchSampler import *
 
 class trainer:
     def __init__(self, 
@@ -66,9 +66,9 @@ class trainer:
 
         # Dataloaders
         if self.mode == "multi" and self.dataset == "RSNA":
-            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size))
-            self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size))
-            self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size))
+            self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.batch_size, drop_last=cfg.drop_last, shuffle=cfg.shuffle, random_append=cfg.random_append))
+            self.val_dataloader = get_val_dataloader(self.val_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.val_df, cfg.val_batch_size, drop_last=False, shuffle=False, random_append=False))
+            self.val_for_train_dataloader = get_val_dataloader(self.val_for_train_dataset, cfg, batch_sampler=MultiImageBatchSampler(self.train_df, cfg.val_batch_size, drop_last=False, shuffle=False, random_append=False))
         else: 
             self.train_dataloader = get_train_dataloader(self.train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=cfg.shuffle, drop_last=cfg.drop_last)
             self.val_dataloader = get_val_dataloader(self.val_dataset, cfg)
@@ -155,7 +155,6 @@ class trainer:
             image_ids.extend([i.item() for i in image_id])
             
         # write and print training results this epoch
-            
         self.writer.train_epoch_save_print_result(label_dic, out_dic, epoch)
         
         #create a new df and then merge with train_df 

@@ -19,7 +19,6 @@ from numpy.random import default_rng
 
 from warmup_scheduler import GradualWarmupScheduler
 
-rng = default_rng()
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
@@ -50,6 +49,7 @@ def triplet_loss(y_pred, prediction_id_list, margin=10.0):
         return loss[2] / len(prediction_id_list)
 
 def sampling_df_with_replace(df):
+    rng = default_rng()
     train_pos = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)
     arranged_data = []
@@ -89,6 +89,7 @@ def sampling_df_with_replace(df):
     return df.iloc[arranged_data]
 
 def sampling_df(df):
+    rng = default_rng()
     train_pos = np.array(df[df["cancer"] == 1].index)
     train_pos_backup = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)

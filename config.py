@@ -53,6 +53,7 @@ cfg.invert_difficult = 0.5#larger -> more inverts
 cfg.valueForInvert = 1#invert difficult negative cases and biopsy == 1 with this value
 cfg.posMixStrength = 0.5#mix positive cases with this strength
 cfg.mixFunction = "simple"#Mixup, CutMix, simple
+cfg.random_append = True
 
 # model
 cfg.backbone = f"tf_efficientnetv2_s"

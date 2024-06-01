@@ -28,7 +28,7 @@ class trainer:
                  loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     ], 
-                 mode = "single",# "triplet", "crossAttention", "multi", "multiScale"
+                 mode = "single",# "triplet", "multi"
                  dataset = "RSNA",
                  test = False,
                  test_df = None,

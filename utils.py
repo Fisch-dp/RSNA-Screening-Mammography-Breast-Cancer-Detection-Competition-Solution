@@ -19,15 +19,22 @@ from numpy.random import default_rng
 
 from warmup_scheduler import GradualWarmupScheduler
 
-def set_seed(seed):
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-    torch.use_deterministic_algorithms(False)
-    torch.cuda.manual_seed(cfg.seed)
-    torch.manual_seed(cfg.seed)
-    random.seed(cfg.seed)
-    np.random.seed(cfg.seed)
-    os.environ['PYTHONHASHSEED'] = str(cfg.seed)
+##### Dataset 
+def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
+
+    df_out = X.copy(deep=True)
+
+    # split
+    cv = StratifiedGroupKFold(n_splits=n_splits, random_state=random_state, shuffle=True)
+    for fold_index, (train_index, val_index) in enumerate(cv.split(X, y, groups)):
+
+        df_out.loc[val_index, "fold"] = fold_index
+        train_groups, val_groups = groups[train_index], groups[val_index]
+        assert len(set(train_groups) & set(val_groups)) == 0
+
+    df_out = df_out.astype({"fold": 'int64'})
+
+    return df_out
 
 def soft_label(df, soften_by, col=["cancer"]):
     for i,c in enumerate(col):
@@ -36,18 +43,6 @@ def soft_label(df, soften_by, col=["cancer"]):
             df.loc[df[c]>0, c] -= soften_by[i]
     return df
     
-def triplet_loss(y_pred, prediction_id_list, margin=10.0):
-        loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
-        margin = torch.tensor(margin).to(cfg.device)
-        for prediction_id in prediction_id_list:
-            pos_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element == prediction_id]).to(cfg.device)
-            neg_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element != prediction_id]).to(cfg.device)
-            loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
-            loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
-            loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0.0).to(cfg.device))#only hard triplets
-            
-        return loss[2] / len(prediction_id_list)
-
 def sampling_df_with_replace(df):
     rng = default_rng()
     train_pos = np.array(df[df["cancer"] == 1].index)
@@ -175,113 +170,20 @@ def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
 
     return val_dataloader
 
-def get_optimizer(cfg, params):
-    if cfg.optimizer == "AdamW":
-        optimizer = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-    elif cfg.optimizer == "Adam":
-        optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-    elif cfg.optimizer == "SGD":
-        optimizer = torch.optim.SGD(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-    elif cfg.optimizer == "RAdam":
-        optimizer = torch.optim.RAdam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-    else:
-        raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
-    return optimizer
+##### Training Metrics
+def triplet_loss(y_pred, prediction_id_list, margin=10.0):
+        loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
+        margin = torch.tensor(margin).to(cfg.device)
+        for prediction_id in prediction_id_list:
+            pos_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element == prediction_id]).to(cfg.device)
+            neg_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element != prediction_id]).to(cfg.device)
+            loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
+            loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
+            loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0.0).to(cfg.device))#only hard triplets
+            
+        return loss[2] / len(prediction_id_list)
 
-def get_scheduler(cfg, train_loader_len, optimizer):
-    if cfg.scheduler == "OneCycleLR":
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=cfg.lr,
-            epochs=cfg.epochs,
-            steps_per_epoch=train_loader_len,
-            pct_start=0.1,
-            anneal_strategy="cos",
-            div_factor=cfg.lr_div,
-            final_div_factor=cfg.lr_final_div,
-        )
-    elif cfg.scheduler == "CosineAnnealingLR":
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=cfg.epochs,
-            eta_min=cfg.lr_min,
-        )
-    elif cfg.scheduler == "StepLR":
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=cfg.StepLR_step_size,
-            gamma=cfg.StepLR_gamma
-        )
-    elif cfg.scheduler == "warmupOneCycleLR":
-        oneCycleLR = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=cfg.lr,
-            epochs=cfg.epochs,
-            steps_per_epoch=train_loader_len,
-            pct_start=0.1,
-            anneal_strategy="cos",
-            div_factor=cfg.lr_div,
-            final_div_factor=cfg.lr_final_div,
-        )
-        scheduler = GradualWarmupScheduler(optimizer,
-                                           multiplier=1,
-                                           total_epoch=train_loader_len * cfg.warmup, 
-                                           after_scheduler=oneCycleLR
-        )
-    else:
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=cfg.StepLR_step_size,
-            gamma=cfg.StepLR_gamma
-        )
-    return scheduler
-
-def get_hparams(cfg, dataset):
-    hparams = {
-        "img_size": cfg.img_size[0],
-        "img_size_W": cfg.img_size[1],
-        "backbone": f"{cfg.backbone}",
-        "pos_weight": cfg.pos_weight,
-        "in_channels": cfg.in_channels,
-        "drop_rate": cfg.drop_rate,
-        "drop_path_rate": cfg.drop_path_rate,
-        "Augmentation": cfg.Aug,
-        "Batch_size": cfg.batch_size,
-        "Num_Folds": cfg.num_folds,
-        "seed": cfg.seed,
-        "initial LR": cfg.lr,
-        "OneCycleLR_div_factor": cfg.lr_div,
-        "OneCycleLR_final_div_factor": cfg.lr_final_div,
-        "Optimizer": cfg.optimizer,
-        "LR_Scheduler": cfg.scheduler,
-        "weight_decay": cfg.weight_decay,
-        "grad_clip": cfg.grad_clip,
-        "Lookahead": str(cfg.Lookahead),
-        "TTA": str(cfg.tta is not None),
-        "Train_AUG": str(cfg.Trans is not None),
-        "Aux_input": str(cfg.aux_input != [])
-    }
-    if cfg.out_classes != ["cancer"] and dataset == "RSNA": 
-        hparams.update({"Auxiliary Training": "True"})
-    elif cfg.out_classes != ["BIRADS"] and dataset == "VinDr": 
-        hparams.update({"Auxiliary Training": "True"})
-    else: hparams.update({"Auxiliary Training": "False"})
-    return hparams
-
-def create_checkpoint(model, optimizer, epoch, scheduler=None, scaler=None):
-    checkpoint = {
-        "model": model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-        "epoch": epoch,
-    }
-
-    if scheduler is not None:
-        checkpoint["scheduler"] = scheduler.state_dict()
-
-    if scaler is not None:
-        checkpoint["scaler"] = scaler.state_dict()
-    return checkpoint
-
+##### Evaluation Metrics
 def pfbeta(labels, predictions, beta):
     y_true_count = 0
     ctp = 0
@@ -336,22 +238,7 @@ def pfbeta_thres(labels, predictions, beta):
     i = f1score.argmax()
     return f1score[i], recall[i], precision[i], thresholds[i]
 
-def apply_StratifiedGroupKFold(X, y, groups, n_splits, random_state=42):
-
-    df_out = X.copy(deep=True)
-
-    # split
-    cv = StratifiedGroupKFold(n_splits=n_splits, random_state=random_state, shuffle=True)
-    for fold_index, (train_index, val_index) in enumerate(cv.split(X, y, groups)):
-
-        df_out.loc[val_index, "fold"] = fold_index
-        train_groups, val_groups = groups[train_index], groups[val_index]
-        assert len(set(train_groups) & set(val_groups)) == 0
-
-    df_out = df_out.astype({"fold": 'int64'})
-
-    return df_out
-
+##### Evaluation 
 def get_probability_hist(df_list, writer, df_names=["Train", "Val"], threshold=None, bins=10):
     fig, axes = plt.subplots(len(df_list), max(len(cfg.out_classes) + 2, 2), figsize=(20,10))
     plt.subplots_adjust(hspace=0.2, wspace=0.2)
@@ -490,3 +377,122 @@ def get_PR_curve(df_list, best_metric, mode, writer, df_names=["Train", "Val"], 
     plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
     plt.show()
     writer.save_Image(name=f'Images/PR Curve', image_path=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
+
+##### Util
+def set_seed(seed):
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.use_deterministic_algorithms(False)
+    torch.cuda.manual_seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    random.seed(cfg.seed)
+    np.random.seed(cfg.seed)
+    os.environ['PYTHONHASHSEED'] = str(cfg.seed)
+
+def get_hparams(cfg, dataset):
+    hparams = {
+        "img_size": cfg.img_size[0],
+        "img_size_W": cfg.img_size[1],
+        "backbone": f"{cfg.backbone}",
+        "pos_weight": cfg.pos_weight,
+        "in_channels": cfg.in_channels,
+        "drop_rate": cfg.drop_rate,
+        "drop_path_rate": cfg.drop_path_rate,
+        "Augmentation": cfg.Aug,
+        "Batch_size": cfg.batch_size,
+        "Num_Folds": cfg.num_folds,
+        "seed": cfg.seed,
+        "initial LR": cfg.lr,
+        "OneCycleLR_div_factor": cfg.lr_div,
+        "OneCycleLR_final_div_factor": cfg.lr_final_div,
+        "Optimizer": cfg.optimizer,
+        "LR_Scheduler": cfg.scheduler,
+        "weight_decay": cfg.weight_decay,
+        "grad_clip": cfg.grad_clip,
+        "Lookahead": str(cfg.Lookahead),
+        "TTA": str(cfg.tta is not None),
+        "Train_AUG": str(cfg.Trans is not None),
+        "Aux_input": str(cfg.aux_input != [])
+    }
+    if cfg.out_classes != ["cancer"] and dataset == "RSNA": 
+        hparams.update({"Auxiliary Training": "True"})
+    elif cfg.out_classes != ["BIRADS"] and dataset == "VinDr": 
+        hparams.update({"Auxiliary Training": "True"})
+    else: hparams.update({"Auxiliary Training": "False"})
+    return hparams
+
+##### Training Util
+def get_optimizer(cfg, params):
+    if cfg.optimizer == "AdamW":
+        optimizer = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "Adam":
+        optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "SGD":
+        optimizer = torch.optim.SGD(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif cfg.optimizer == "RAdam":
+        optimizer = torch.optim.RAdam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    else:
+        raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
+    return optimizer
+
+def get_scheduler(cfg, train_loader_len, optimizer):
+    if cfg.scheduler == "OneCycleLR":
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=cfg.lr,
+            epochs=cfg.epochs,
+            steps_per_epoch=train_loader_len,
+            pct_start=0.1,
+            anneal_strategy="cos",
+            div_factor=cfg.lr_div,
+            final_div_factor=cfg.lr_final_div,
+        )
+    elif cfg.scheduler == "CosineAnnealingLR":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=cfg.epochs,
+            eta_min=cfg.lr_min,
+        )
+    elif cfg.scheduler == "StepLR":
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=cfg.StepLR_step_size,
+            gamma=cfg.StepLR_gamma
+        )
+    elif cfg.scheduler == "warmupOneCycleLR":
+        oneCycleLR = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=cfg.lr,
+            epochs=cfg.epochs,
+            steps_per_epoch=train_loader_len,
+            pct_start=0.1,
+            anneal_strategy="cos",
+            div_factor=cfg.lr_div,
+            final_div_factor=cfg.lr_final_div,
+        )
+        scheduler = GradualWarmupScheduler(optimizer,
+                                           multiplier=1,
+                                           total_epoch=train_loader_len * cfg.warmup, 
+                                           after_scheduler=oneCycleLR
+        )
+    else:
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=cfg.StepLR_step_size,
+            gamma=cfg.StepLR_gamma
+        )
+    return scheduler
+
+def create_checkpoint(model, optimizer, epoch, scheduler=None, scaler=None):
+    checkpoint = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "epoch": epoch,
+    }
+
+    if scheduler is not None:
+        checkpoint["scheduler"] = scheduler.state_dict()
+
+    if scaler is not None:
+        checkpoint["scaler"] = scaler.state_dict()
+    return checkpoint

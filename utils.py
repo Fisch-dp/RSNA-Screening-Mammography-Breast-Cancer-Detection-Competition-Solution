@@ -20,6 +20,35 @@ from numpy.random import default_rng
 from warmup_scheduler import GradualWarmupScheduler
 
 rng = default_rng()
+def set_seed(seed):
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.use_deterministic_algorithms(False)
+    torch.cuda.manual_seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    random.seed(cfg.seed)
+    np.random.seed(cfg.seed)
+    os.environ['PYTHONHASHSEED'] = str(cfg.seed)
+
+def soft_label(df, soften_by, col=["cancer"]):
+    for i,c in enumerate(col):
+        if soften_by[i] is not None:
+            df.loc[df[c]==0, c] += soften_by[i]
+            df.loc[df[c]>0, c] -= soften_by[i]
+    return df
+    
+def triplet_loss(y_pred, prediction_id_list, margin=10.0):
+        loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
+        margin = torch.tensor(margin).to(cfg.device)
+        for prediction_id in prediction_id_list:
+            pos_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element == prediction_id]).to(cfg.device)
+            neg_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element != prediction_id]).to(cfg.device)
+            loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
+            loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
+            loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0.0).to(cfg.device))#only hard triplets
+            
+        return loss[2] / len(prediction_id_list)
+
 def sampling_df_with_replace(df):
     train_pos = np.array(df[df["cancer"] == 1].index)
     train_neg = np.array(df[df["cancer"] == 0].index)
@@ -104,61 +133,6 @@ def sampling_df(df):
     arranged_data = np.concatenate(arranged_data)
     return df.iloc[arranged_data]
 
-
-def set_seed(seed):
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-    torch.use_deterministic_algorithms(False)
-    torch.cuda.manual_seed(cfg.seed)
-    torch.manual_seed(cfg.seed)
-    random.seed(cfg.seed)
-    np.random.seed(cfg.seed)
-    os.environ['PYTHONHASHSEED'] = str(cfg.seed)
-
-def soft_label(df, soften_by, col=["cancer"]):
-    for i,c in enumerate(col):
-        if soften_by[i] is not None:
-            df.loc[df[c]==0, c] += soften_by[i]
-            df.loc[df[c]>0, c] -= soften_by[i]
-    return df
-
-class MultiImageBatchSampler(torch.utils.data.Sampler):
-    def __init__(self, df, batch_size):
-        self.batch_size = batch_size
-        self.df = df
-        self.index = []
-        index = []
-        for p_id in np.random.permutation(pd.unique(self.df['prediction_id'])):
-            i = np.where(self.df['prediction_id'].values == p_id)[0]
-            if len(index) + len(i) >= batch_size:
-                self.index.append(index)
-                index = []
-                index.extend(i)
-            else:
-                index.extend(i)
-        if len(index) > 0:
-            self.index.append(index)
-
-    def __iter__(self):
-        for i in range(len(self.index)):
-            yield self.index[i]
-
-    def __len__(self):
-        return len(self.index)
-    
-def triplet_loss(y_pred, prediction_id_list, margin=10.0):
-        loss =[torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device), torch.tensor(0.0).to(cfg.device)]# [positive, negative, triplet]
-        margin = torch.tensor(margin).to(cfg.device)
-        for prediction_id in prediction_id_list:
-            pos_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element == prediction_id]).to(cfg.device)
-            neg_indices = torch.tensor([index for index, element in enumerate(prediction_id_list) if element != prediction_id]).to(cfg.device)
-            loss[0] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[pos_indices].unsqueeze(0), dim=2).mean()
-            loss[1] += torch.norm(y_pred[pos_indices].unsqueeze(1) - y_pred[neg_indices].unsqueeze(0), dim=2).mean()
-            loss[2] += torch.max(loss[0] - loss[1] + margin, torch.tensor(0.0).to(cfg.device))#only hard triplets
-            
-        return loss[2] / len(prediction_id_list)
-
-
 def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, shuffle=False, drop_last=False):
     shu = shuffle
     if sampler is not None or batch_sampler is not None: 
@@ -182,7 +156,6 @@ def get_train_dataloader(train_dataset, cfg, sampler=None, batch_sampler=None, s
     )
 
     return train_dataloader
-
 
 def get_val_dataloader(val_dataset, cfg, sampler=None, batch_sampler=None):
     bsize = cfg.val_batch_size
@@ -516,4 +489,3 @@ def get_PR_curve(df_list, best_metric, mode, writer, df_names=["Train", "Val"], 
     plt.savefig(fname=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
     plt.show()
     writer.save_Image(name=f'Images/PR Curve', image_path=f"{cfg.output_dir}/fold{cfg.fold}/PR_curve.png")
-

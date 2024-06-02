@@ -184,6 +184,8 @@ cfg.Trans = A.Compose([
 • <b>PR curve: compare thresholded f1 score between sites\
 • Confusion Matrix:</b> it helps me to identify correlated classes and set auxiliary tasks\
 • <b>Histogram:</b> it helps me to identify the distribution of the prediction, and compare against val and train set, and against sites
+<img src="Images/wandb.png"
+     alt="Wandb"/>
 <img src="Images/PR curve.png"
      alt="PR curve"/>
 <img src="Images/confustion matrix.png"

@@ -1,14 +1,14 @@
 from types import SimpleNamespace
 import os
-#import albumentations as A
-# from monai.transforms import (
-#     Compose,
-#     LoadImaged,
-#     EnsureChannelFirstd,
-#     Transposed,
-#     Lambdad,
-#     Resized,
-# )
+import albumentations as A
+from monai.transforms import (
+    Compose,
+    LoadImaged,
+    EnsureChannelFirstd,
+    Transposed,
+    Lambdad,
+    Resized,
+)
 import torch
 import cv2
 cfg = SimpleNamespace(**{})

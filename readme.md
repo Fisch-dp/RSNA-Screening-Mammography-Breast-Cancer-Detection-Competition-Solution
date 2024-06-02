@@ -29,7 +29,7 @@ To run and track the training progress, you may use the following command:
 wandb login --verify ## Your Wandb api key ##
 python main.py
 ```
-Or you may run the code with jupyter notebook/colab/kaggle with the file named main.py
+Or you may run the code with jupyter notebook/colab/kaggle with the file named `main.ipynb`
 
 ## Data
 The data is available on [Kaggle](https://www.kaggle.com/c/rsna-miccai-brain-tumor-radiogenomic-classification/data). You can download the data and put it in the `data` folder.
@@ -193,4 +193,4 @@ cfg.Trans = A.Compose([
 <img src="Images/Histogram.png"
      alt="Histogram"/>
 
-For PR curve and histogram, credit to @hengck23 - https://www.kaggle.com/competitions/rsna-breast-cancer-detection/discussion/378521
+For PR curve and histogram, credit to @hengck23 (https://www.kaggle.com/competitions/rsna-breast-cancer-detection/discussion/378521)

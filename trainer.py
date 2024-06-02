@@ -8,6 +8,7 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 from sklearn import metrics
+from prettytable import PrettyTable
 
 sys.path.append("./")
 from config import *
@@ -20,26 +21,23 @@ from batchSampler import *
 
 class trainer:
     def __init__(self, 
-                 cfg,
-                 df,
-                 model,
-                 scaler = GradScaler(),
-                 loss_calculation = torch.mean,
-                 loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
+                cfg,
+                df,
+                model,
+                scaler = GradScaler(),
+                loss_calculation = torch.mean, 
+                loss_functions = [ torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
                                     torch.nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor([cfg.pos_weight])),
-                                    ], 
-                 mode = "single",# "triplet", "multi"
-                 dataset = "RSNA",
-                 test = False,
-                 test_df = None,
-                 name = " "
+                                ],
+                test = False,
+                test_df = None
                  ):
         
         assert len(loss_functions) == len(cfg.out_classes)
         self.cfg = cfg
         self.df = df
-        self.mode = mode
-        self.dataset = dataset
+        self.mode = cfg.mode
+        self.dataset = cfg.dataset
         self.test = test
         self.train_track_save_list = ["F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision"],
         self.val_track_save_list = ["F1", "Bin F1", "AUC", "Loss", "Pos Loss", "Neg Loss", "Recall", "Precision", "Bin Recall", "Bin Precision", "Threshold", "SelectedP"],
@@ -52,17 +50,17 @@ class trainer:
                 if self.cfg.sample_df_with_replace:
                     self.train_df = sampling_df_with_replace(self.train_df)
                 else: self.train_df = sampling_df(self.train_df)
-            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Test", dataset=dataset)
-            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=dataset)
+            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Test", dataset=self.dataset)
+            self.train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Train", dataset=self.dataset)
         else:
             self.val_df = self.df[self.df["fold"] == cfg.fold].reset_index(drop=True)
             self.train_df = self.df[self.df["fold"] != cfg.fold].reset_index(drop=True)
             self.soft_labeled_train_df = self.train_df.copy()
             if cfg.soften_label_by is not None:
                 self.soft_labeled_train_df = soft_label(self.soft_labeled_train_df, cfg.soften_label_by, cfg.soften_columns)
-            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Val", dataset=dataset)
-            self.train_dataset = CustomDataset(df=self.soft_labeled_train_df, cfg=cfg, Train="Train", dataset=dataset)
-        self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Val", dataset=dataset)
+            self.val_dataset = CustomDataset(df=self.val_df, cfg=cfg, Train="Val", dataset=self.dataset)
+            self.train_dataset = CustomDataset(df=self.soft_labeled_train_df, cfg=cfg, Train="Train", dataset=self.dataset)
+        self.val_for_train_dataset = CustomDataset(df=self.train_df, cfg=cfg, Train="Val", dataset=self.dataset)
 
         # Dataloaders
         if self.mode == "multi" and self.dataset == "RSNA":
@@ -80,11 +78,11 @@ class trainer:
 
         # SummaryWriter
         self.writer = SummaryWriter(cfg=cfg, 
-                                    name=name, 
-                                    write_to="wandb",
-                                    notes="",
-                                    project= "RSNA Second Attempt", 
-                                    group= "Initial Tests"
+                                    name=cfg.trial_name, 
+                                    write_to=cfg.write_to,
+                                    notes=cfg.notes,
+                                    project=cfg.project, 
+                                    group=cfg.group
                                     )
         # Model
         self.model = model.to(cfg.device)
@@ -93,7 +91,7 @@ class trainer:
         # Scheduler
         self.scheduler = get_scheduler(cfg, int(len(self.train_dataloader)), self.optimizer)
         # Hparams
-        self.hparams = get_hparams(cfg, dataset)
+        self.hparams = get_hparams(cfg, cfg.dataset)
         # Train Config
         self.loss_functions = [i.to(cfg.device) for i in loss_functions]
         self.scaler = scaler
@@ -477,7 +475,7 @@ class trainer:
                         )
             torch.save(
                 checkpoint,
-                f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_metric.pth",
+                f"{cfg.model_dir}/checkpoint_best_metric.pth",
             )
 
         if loss < self.best_loss:
@@ -494,7 +492,7 @@ class trainer:
             )
             torch.save(
                 checkpoint,
-                f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_Loss_metric.pth",
+                f"{cfg.model_dir}/checkpoint_best_Loss_metric.pth",
             )
 
                 

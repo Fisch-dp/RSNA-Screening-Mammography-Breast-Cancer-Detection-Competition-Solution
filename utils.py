@@ -496,3 +496,6 @@ def create_checkpoint(model, optimizer, epoch, scheduler=None, scaler=None):
     if scaler is not None:
         checkpoint["scaler"] = scaler.state_dict()
     return checkpoint
+
+def mean(item):
+    return torch.stack(item, dim=0).mean()

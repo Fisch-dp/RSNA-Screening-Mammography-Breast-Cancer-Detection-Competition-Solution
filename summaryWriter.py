@@ -18,7 +18,17 @@ class summaryWriter:
             group= group,
             name= name,
             notes= " ",
-        )
+            )
+            wandb.define_metric("batch")
+            wandb.define_metric("epoch")
+            wandb.define_metric("Can/*", step_metric="epoch")
+            wandb.define_metric("Inv/*", step_metric="epoch")
+            wandb.define_metric("image_id/*", step_metric="epoch")
+            wandb.define_metric("patient_id/*", step_metric="epoch")
+            wandb.define_metric("site1/*", step_metric="epoch")
+            wandb.define_metric("site2/*", step_metric="epoch")
+            wandb.define_metric("Learning_Rate", step_metric="batch")
+            
         elif write_to == "tensorboard":
             self.writer = SummaryWriter(cfg.log_dir)
 

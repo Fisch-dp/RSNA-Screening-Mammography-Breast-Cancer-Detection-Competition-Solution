@@ -37,14 +37,14 @@ class summaryWriter:
         if self.write_to == "wandb":
             wandb.log({f"{name}": value}, step=step)
             if x_axis is not None:
-                wandb.log({name: value, x_axis: step})
+                wandb.log({name: value, f"{x_axis}": step})
         elif self.write_to == "tensorboard":
             self.writer.add_scalar(name, value, step)
     
     def save_Image(self, name, image_path):
         # only Implemeted for wandb
         if self.write_to == "wandb":
-            wandb.log({name : wandb.Image(Image.open(image_path))})
+            wandb.log({f"{name}" : wandb.Image(Image.open(image_path))})
     
     def add_hparams(self, hparam_dict, metric_dict):
         if self.write_to == "tensorboard":

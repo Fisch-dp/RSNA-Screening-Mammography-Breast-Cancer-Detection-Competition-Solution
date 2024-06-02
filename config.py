@@ -54,10 +54,10 @@ cfg.gpu_cache = False
 cfg.val_gpu_cache = False
 
 # Paths and Directories
-cfg.data_dir = "/kaggle/input/rsna-breast-cancer-detection" # main dataset directory
+cfg.data_dir = "/kaggle/input/rsna-breast-cancer-detection/" # main dataset directory
 cfg.data_df = cfg.data_dir + "train.csv"
 cfg.test_df = cfg.data_dir + "sample_submission.csv"
-cfg.output_dir = f"./folds{0}/"
+cfg.output_dir = f"./folds0/"
 cfg.model_dir = f"{cfg.output_dir}/fold{cfg.fold}"
 os.makedirs(f"{cfg.output_dir}/fold{cfg.fold}", exist_ok=True)
 

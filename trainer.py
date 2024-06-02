@@ -77,7 +77,7 @@ class trainer:
             print("Train Pos: ", self.train_df['cancer'].sum(), "Val_Pos: ", self.val_df['cancer'].sum())
 
         # SummaryWriter
-        self.writer = SummaryWriter(cfg=cfg, 
+        self.writer = summaryWriter(cfg=cfg, 
                                     name=cfg.trial_name, 
                                     write_to=cfg.write_to,
                                     notes=cfg.notes,
@@ -153,7 +153,7 @@ class trainer:
             image_ids.extend([i.item() for i in image_id])
             
         # write and print training results this epoch
-        self.writer.train_epoch_save_print_result(label_dic, out_dic, epoch)
+        self.train_epoch_save_print_result(label_dic, out_dic, epoch)
         
         #create a new df and then merge with train_df 
         if self.mode == "single":
@@ -290,7 +290,7 @@ class trainer:
         if best: 
             try:
                 model = Model(cfg)
-                model.load_state_dict(torch.load(f"{self.cfg.output_dir}/fold{self.cfg.fold}/checkpoint_best_metric.pth")['model'])
+                model.load_state_dict(torch.load(f"{cfg.model_dir}/checkpoint_best_metric.pth")['model'])
                 model.to(self.cfg.device)
             except:
                 model = self.model

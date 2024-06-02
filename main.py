@@ -78,9 +78,9 @@ def main():
     wandb.run.log({"Eval on Train": train_wandb_table})
     wandb.run.log({"Eval on Val": val_wandb_table})
 
-    get_probability_hist([train_df, val_df], bins=30)
-    get_corr_matrix([train_df, val_df])
-    get_PR_curve([train_df, val_df], mode="single", best_metric=ter.best_metric)
+    get_probability_hist([train_df, val_df], ter.writer, bins=30)
+    get_corr_matrix([train_df, val_df], ter.writer)
+    get_PR_curve([train_df, val_df], ter.writer, mode="single", best_metric=ter.best_metric)
 
     ############ End ############
     wandb.finish()

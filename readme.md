@@ -174,7 +174,7 @@ cfg.Trans = A.Compose([
 • Sampler:</b> no sampler was used to control postive/negative ratio, instead, pos_weight was used in loss function\
 • <b>Loss function:</b> Focal loss/Triplet Loss\
 • <b>Models:</b> Effnet, NextVit, Convnextv1\
-• <b>Generate images with GAN:</b> difficult to train and no observable improvement\
+• <b>Generate images with GAN:</b> no observable improvement, aim is to generate positive samples, but there are just too few positive samples for the model to learn well\
 • <b>CutMix/MixUp\
 • Muti-View Model:</b> it has no clear improvement, but it is possible that it may help to improve score if it is tuned better.\
 • <b>zero padding</b>
